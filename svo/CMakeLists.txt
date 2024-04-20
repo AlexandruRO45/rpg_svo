@@ -3,14 +3,14 @@
 
 SET(TRACE TRUE)
 SET(HAVE_G2O FALSE) 
-SET(USE_ROS TRUE) # Set FALSE if you want to build this package without Catkin
-SET(DEBUG_OUTPUT FALSE) # Only relevant if build without ROS
+SET(USE_ROS FALSE) # Set FALSE if you want to build this package without Catkin
+SET(DEBUG_OUTPUT TRUE) # Only relevant if build without ROS
 
 ################################################################################
 
 SET(PROJECT_NAME svo)
+CMAKE_MINIMUM_REQUIRED (VERSION 3.14)
 PROJECT(${PROJECT_NAME})
-CMAKE_MINIMUM_REQUIRED (VERSION 2.8.3)
 SET(CMAKE_BUILD_TYPE Release) # Release, RelWithDebInfo
 SET(CMAKE_VERBOSE_MAKEFILE OFF)
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/CMakeModules/")
@@ -44,6 +44,9 @@ ELSE()
 ENDIF()
 SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3 -fsee -fomit-frame-pointer -fno-signed-zeros -fno-math-errno -funroll-loops")
 
+# Add debug symbols
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
+
 # Add plain cmake packages 
 FIND_PACKAGE(OpenCV REQUIRED)
 FIND_PACKAGE(Eigen REQUIRED)
@@ -70,7 +73,6 @@ INCLUDE_DIRECTORIES(
   include
   ${Eigen_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
-  ${Sophus_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS}
   ${fast_INCLUDE_DIRS}
 )
@@ -78,7 +80,7 @@ INCLUDE_DIRECTORIES(
 # Set link libraries
 LIST(APPEND LINK_LIBS 
   ${OpenCV_LIBS}
-  ${Sophus_LIBRARIES}
+  Sophus::Sophus
   ${Boost_LIBRARIES}
   ${fast_LIBRARIES}
 )
@@ -148,4 +150,4 @@ ADD_EXECUTABLE(test_sparse_img_align test/test_sparse_img_align.cpp)
 TARGET_LINK_LIBRARIES(test_sparse_img_align svo)
 
 ADD_EXECUTABLE(test_pose_optimizer test/test_pose_optimizer.cpp)
-TARGET_LINK_LIBRARIES(test_pose_optimizer svo) 
+TARGET_LINK_LIBRARIES(test_pose_optimizer svo)

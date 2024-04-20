@@ -15,7 +15,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <svo/config.h>
-#include <svo/frame.h>
+//#include <svo/frame.h>
 #include <svo/point.h>
 #include <svo/feature.h>
 #include <svo/initialization.h>
@@ -66,18 +66,18 @@ InitResult KltHomographyInit::addSecondFrame(FramePtr frame_cur)
   }
 
   // Rescale the map such that the mean scene depth is equal to the specified scale
-  vector<double> depth_vec;
+  std::vector<double> depth_vec;
   for(size_t i=0; i<xyz_in_cur_.size(); ++i)
     depth_vec.push_back((xyz_in_cur_[i]).z());
   double scene_depth_median = vk::getMedian(depth_vec);
   double scale = Config::mapScale()/scene_depth_median;
   frame_cur->T_f_w_ = T_cur_from_ref_ * frame_ref_->T_f_w_;
   frame_cur->T_f_w_.translation() =
-      -frame_cur->T_f_w_.rotation_matrix()*(frame_ref_->pos() + scale*(frame_cur->pos() - frame_ref_->pos()));
+      -frame_cur->T_f_w_.rotationMatrix()*(frame_ref_->pos() + scale*(frame_cur->pos() - frame_ref_->pos()));
 
   // For each inlier create 3D point and add feature in both frames
-  SE3 T_world_cur = frame_cur->T_f_w_.inverse();
-  for(vector<int>::iterator it=inliers_.begin(); it!=inliers_.end(); ++it)
+  SE3d T_world_cur = frame_cur->T_f_w_.inverse();
+  for(std::vector<int>::iterator it=inliers_.begin(); it!=inliers_.end(); ++it)
   {
     Vector2d px_cur(px_cur_[*it].x, px_cur_[*it].y);
     Vector2d px_ref(px_ref_[*it].x, px_ref_[*it].y);
@@ -106,8 +106,8 @@ void KltHomographyInit::reset()
 
 void detectFeatures(
     FramePtr frame,
-    vector<cv::Point2f>& px_vec,
-    vector<Vector3d>& f_vec)
+    std::vector<cv::Point2f>& px_vec,
+    std::vector<Vector3d>& f_vec)
 {
   Features new_features;
   feature_detection::FastDetector detector(
@@ -127,18 +127,18 @@ void detectFeatures(
 void trackKlt(
     FramePtr frame_ref,
     FramePtr frame_cur,
-    vector<cv::Point2f>& px_ref,
-    vector<cv::Point2f>& px_cur,
-    vector<Vector3d>& f_ref,
-    vector<Vector3d>& f_cur,
-    vector<double>& disparities)
+    std::vector<cv::Point2f>& px_ref,
+    std::vector<cv::Point2f>& px_cur,
+    std::vector<Vector3d>& f_ref,
+    std::vector<Vector3d>& f_cur,
+    std::vector<double>& disparities)
 {
   const double klt_win_size = 30.0;
   const int klt_max_iter = 30;
   const double klt_eps = 0.001;
-  vector<uchar> status;
-  vector<float> error;
-  vector<float> min_eig_vec;
+  std::vector<uchar> status;
+  std::vector<float> error;
+  std::vector<float> min_eig_vec;
   cv::TermCriteria termcrit(cv::TermCriteria::COUNT+cv::TermCriteria::EPS, klt_max_iter, klt_eps);
   cv::calcOpticalFlowPyrLK(frame_ref->img_pyr_[0], frame_cur->img_pyr_[0],
                            px_ref, px_cur,
@@ -146,9 +146,9 @@ void trackKlt(
                            cv::Size2i(klt_win_size, klt_win_size),
                            4, termcrit, cv::OPTFLOW_USE_INITIAL_FLOW);
 
-  vector<cv::Point2f>::iterator px_ref_it = px_ref.begin();
-  vector<cv::Point2f>::iterator px_cur_it = px_cur.begin();
-  vector<Vector3d>::iterator f_ref_it = f_ref.begin();
+  std::vector<cv::Point2f>::iterator px_ref_it = px_ref.begin();
+  std::vector<cv::Point2f>::iterator px_cur_it = px_cur.begin();
+  std::vector<Vector3d>::iterator f_ref_it = f_ref.begin();
   f_cur.clear(); f_cur.reserve(px_cur.size());
   disparities.clear(); disparities.reserve(px_cur.size());
   for(size_t i=0; px_ref_it != px_ref.end(); ++i)
@@ -169,16 +169,16 @@ void trackKlt(
 }
 
 void computeHomography(
-    const vector<Vector3d>& f_ref,
-    const vector<Vector3d>& f_cur,
+    const std::vector<Vector3d>& f_ref,
+    const std::vector<Vector3d>& f_cur,
     double focal_length,
     double reprojection_threshold,
-    vector<int>& inliers,
-    vector<Vector3d>& xyz_in_cur,
-    SE3& T_cur_from_ref)
+    std::vector<int>& inliers,
+    std::vector<Vector3d>& xyz_in_cur,
+    SE3d& T_cur_from_ref)
 {
-  vector<Vector2d > uv_ref(f_ref.size());
-  vector<Vector2d > uv_cur(f_cur.size());
+  std::vector<Vector2d > uv_ref(f_ref.size());
+  std::vector<Vector2d > uv_cur(f_cur.size());
   for(size_t i=0, i_max=f_ref.size(); i<i_max; ++i)
   {
     uv_ref[i] = vk::project2d(f_ref[i]);
@@ -186,9 +186,9 @@ void computeHomography(
   }
   vk::Homography Homography(uv_ref, uv_cur, focal_length, reprojection_threshold);
   Homography.computeSE3fromMatches();
-  vector<int> outliers;
+  std::vector<int> outliers;
   vk::computeInliers(f_cur, f_ref,
-                     Homography.T_c2_from_c1.rotation_matrix(), Homography.T_c2_from_c1.translation(),
+                     Homography.T_c2_from_c1.rotationMatrix(), Homography.T_c2_from_c1.translation(),
                      reprojection_threshold, focal_length,
                      xyz_in_cur, inliers, outliers);
   T_cur_from_ref = Homography.T_c2_from_c1;

@@ -18,16 +18,16 @@
 #include <vikit/math_utils.h>
 #include <vikit/abstract_camera.h>
 #include <vikit/vision.h>
-#include <boost/bind.hpp>
+//#include <boost/bind/bind.hpp>
 #include <boost/math/distributions/normal.hpp>
 #include <svo/global.h>
 #include <svo/depth_filter.h>
-#include <svo/frame.h>
+//#include <svo/frame.h>
 #include <svo/point.h>
 #include <svo/feature.h>
-#include <svo/matcher.h>
+//#include <svo/matcher.h>
 #include <svo/config.h>
-#include <svo/feature_detection.h>
+//#include <svo/feature_detection.h>
 
 namespace svo {
 
@@ -157,7 +157,7 @@ void DepthFilter::reset()
     lock_t lock(seeds_mut_);
     seeds_.clear();
   }
-  lock_t lock();
+  lock_t lock;
   while(!frame_queue_.empty())
     frame_queue_.pop();
   seeds_updating_halt_ = false;
@@ -219,7 +219,7 @@ void DepthFilter::updateSeeds(FramePtr frame)
     }
 
     // check if point is visible in the current image
-    SE3 T_ref_cur = it->ftr->frame->T_f_w_ * frame->T_f_w_.inverse();
+    SE3d T_ref_cur = it->ftr->frame->T_f_w_ * frame->T_f_w_.inverse();
     const Vector3d xyz_f(T_ref_cur.inverse()*(1.0/it->mu * it->ftr->f) );
     if(xyz_f.z() < 0.0)  {
       ++it; // behind the camera
@@ -232,7 +232,7 @@ void DepthFilter::updateSeeds(FramePtr frame)
 
     // we are using inverse depth coordinates
     float z_inv_min = it->mu + sqrt(it->sigma2);
-    float z_inv_max = max(it->mu - sqrt(it->sigma2), 0.00000001f);
+    float z_inv_max = std::max(it->mu - sqrt(it->sigma2), 0.00000001f);
     double z;
     if(!matcher_.findEpipolarMatchDirect(
         *it->ftr->frame, *frame, *it->ftr, 1.0/it->mu, 1.0/z_inv_min, 1.0/z_inv_max, z))
@@ -245,7 +245,7 @@ void DepthFilter::updateSeeds(FramePtr frame)
 
     // compute tau
     double tau = computeTau(T_ref_cur, it->ftr->f, z, px_error_angle);
-    double tau_inverse = 0.5 * (1.0/max(0.0000001, z-tau) - 1.0/(z+tau));
+    double tau_inverse = 0.5 * (1.0/std::max(0.0000001, z-tau) - 1.0/(z+tau));
 
     // update the estimate
     updateSeed(1./z, tau_inverse*tau_inverse, &*it);
@@ -332,7 +332,7 @@ void DepthFilter::updateSeed(const float x, const float tau2, Seed* seed)
 }
 
 double DepthFilter::computeTau(
-      const SE3& T_ref_cur,
+      const SE3d& T_ref_cur,
       const Vector3d& f,
       const double z,
       const double px_error_angle)

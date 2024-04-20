@@ -16,8 +16,8 @@
 
 #include <vikit/abstract_camera.h>
 #include <stdlib.h>
-#include <Eigen/StdVector>
-#include <boost/bind.hpp>
+//#include <Eigen/StdVector>
+#include <boost/bind/bind.hpp>
 #include <fstream>
 #include <svo/frame_handler_base.h>
 #include <svo/config.h>
@@ -180,15 +180,15 @@ void FrameHandlerBase::optimizeStructure(
     size_t max_n_pts,
     int max_iter)
 {
-  deque<Point*> pts;
+  std::deque<Point*> pts;
   for(Features::iterator it=frame->fts_.begin(); it!=frame->fts_.end(); ++it)
   {
     if((*it)->point != NULL)
       pts.push_back((*it)->point);
   }
-  max_n_pts = min(max_n_pts, pts.size());
-  nth_element(pts.begin(), pts.begin() + max_n_pts, pts.end(), ptLastOptimComparator);
-  for(deque<Point*>::iterator it=pts.begin(); it!=pts.begin()+max_n_pts; ++it)
+  max_n_pts = std::min(max_n_pts, pts.size());
+  std::nth_element(pts.begin(), pts.begin() + max_n_pts, pts.end(), ptLastOptimComparator);
+  for(std::deque<Point*>::iterator it=pts.begin(); it!=pts.begin()+max_n_pts; ++it)
   {
     (*it)->optimize(max_iter);
     (*it)->last_structure_optim_ = frame->id_;

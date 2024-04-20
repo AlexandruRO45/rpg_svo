@@ -37,7 +37,7 @@ struct Corner
     x(x), y(y), level(level), score(score), angle(angle)
   {}
 };
-typedef vector<Corner> Corners;
+typedef std::vector<Corner> Corners;
 
 /// All detectors should derive from this abstract class.
 class AbstractDetector
@@ -70,7 +70,7 @@ protected:
   const int n_pyr_levels_;
   const int grid_n_cols_;
   const int grid_n_rows_;
-  vector<bool> grid_occupancy_;
+  std::vector<bool> grid_occupancy_;
 
   void resetGrid();
 

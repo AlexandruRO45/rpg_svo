@@ -1,0 +1,5 @@
+svo/bin
+svo/build
+svo/lib
+svo/cmake-build-debug
+.idea

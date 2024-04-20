@@ -44,11 +44,11 @@ public:
   FramePtr lastFrame() { return last_frame_; }
 
   /// Get the set of spatially closest keyframes of the last frame.
-  const set<FramePtr>& coreKeyframes() { return core_kfs_; }
+  const std::set<FramePtr>& coreKeyframes() { return core_kfs_; }
 
   /// Return the feature track to visualize the KLT tracking during initialization.
-  const vector<cv::Point2f>& initFeatureTrackRefPx() const { return klt_homography_init_.px_ref_; }
-  const vector<cv::Point2f>& initFeatureTrackCurPx() const { return klt_homography_init_.px_cur_; }
+  const std::vector<cv::Point2f>& initFeatureTrackRefPx() const { return klt_homography_init_.px_ref_; }
+  const std::vector<cv::Point2f>& initFeatureTrackCurPx() const { return klt_homography_init_.px_cur_; }
 
   /// Access the depth filter.
   DepthFilter* depthFilter() const { return depth_filter_; }
@@ -56,7 +56,7 @@ public:
   /// An external place recognition module may know where to relocalize.
   bool relocalizeFrameAtPose(
       const int keyframe_id,
-      const SE3& T_kf_f,
+      const SE3d& T_kf_f,
       const cv::Mat& img,
       const double timestamp);
 
@@ -65,8 +65,8 @@ protected:
   Reprojector reprojector_;                     //!< Projects points from other keyframes into the current frame
   FramePtr new_frame_;                          //!< Current frame.
   FramePtr last_frame_;                         //!< Last frame, not necessarily a keyframe.
-  set<FramePtr> core_kfs_;                      //!< Keyframes in the closer neighbourhood.
-  vector< pair<FramePtr,size_t> > overlap_kfs_; //!< All keyframes with overlapping field of view. the paired number specifies how many common mappoints are observed TODO: why vector!?
+  std::set<FramePtr> core_kfs_;                 //!< Keyframes in the closer neighbourhood.
+  std::vector< std::pair<FramePtr,size_t> > overlap_kfs_; //!< All keyframes with overlapping field of view. the paired number specifies how many common mappoints are observed TODO: why vector!?
   initialization::KltHomographyInit klt_homography_init_; //!< Used to estimate pose of the first two keyframes by estimating a homography.
   DepthFilter* depth_filter_;                   //!< Depth estimation algorithm runs in a parallel thread and is used to initialize new 3D points.
 
@@ -84,7 +84,7 @@ protected:
 
   /// Try relocalizing the frame at relative position to provided keyframe.
   virtual UpdateResult relocalizeFrame(
-      const SE3& T_cur_ref,
+      const SE3d& T_cur_ref,
       FramePtr ref_keyframe);
 
   /// Reset the frame handler. Implement in derived class.

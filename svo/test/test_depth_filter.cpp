@@ -17,12 +17,12 @@
 #include <list>
 #include <vector>
 #include <string>
-#include <boost/bind.hpp>
+#include <boost/bind/bind.hpp>
 #include <boost/make_shared.hpp>
 #include <boost/shared_ptr.hpp>
 #include <vikit/pinhole_camera.h>
 #include <vikit/abstract_camera.h>
-#include <vikit/atan_camera.h>
+//#include <vikit/atan_camera.h>
 #include <vikit/math_utils.h>
 #include <vikit/file_reader.h>
 #include <vikit/blender_utils.h>
@@ -108,7 +108,7 @@ void DepthFilterTest::testReconstruction(
   svo::feature_detection::DetectorPtr feature_detector(
       new svo::feature_detection::FastDetector(
           cam_->width(), cam_->height(), svo::Config::gridSize(), svo::Config::nPyrLevels()));
-  svo::DepthFilter::callback_t depth_filter_cb = boost::bind(&DepthFilterTest::depthFilterCb, this, _1, _2);
+  svo::DepthFilter::callback_t depth_filter_cb = boost::bind(&DepthFilterTest::depthFilterCb, this, boost::placeholders::_1, boost::placeholders::_2);
   depth_filter_ = new svo::DepthFilter(feature_detector, depth_filter_cb);
   depth_filter_->options_.verbose = true;
 
@@ -119,7 +119,7 @@ void DepthFilterTest::testReconstruction(
     cv::Mat img(cv::imread(img_name, 0));
     assert(!img.empty());
 
-    Sophus::SE3 T_w_f(it->q_, it->t_);
+    Sophus::SE3d T_w_f(it->q_, it->t_);
     if(i == 0)
     {
       // create reference frame and load ground truth depthmap

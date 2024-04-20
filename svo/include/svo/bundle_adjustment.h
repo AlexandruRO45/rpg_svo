@@ -61,7 +61,7 @@ void twoViewBA(Frame* frame1, Frame* frame2, double reproj_thresh, Map* map);
 /// neighbourhood fixed.
 void localBA(
     Frame* center_kf,
-    set<FramePtr>* core_kfs,
+    std::set<FramePtr>* core_kfs,
     Map* map,
     size_t& n_incorrect_edges_1,
     size_t& n_incorrect_edges_2,

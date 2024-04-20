@@ -54,7 +54,7 @@ void testCornerDetector()
   printf("Fast corner detection took %f ms, %zu corners detected (ref i7-W520: 7.166360ms, 40000)\n", t.stop()*10, fts.size());
   printf("Note, in this case, feature detection also contains the cam2world projection of the feature.\n");
   cv::Mat img_rgb = cv::Mat(img.size(), CV_8UC3);
-  cv::cvtColor(img, img_rgb, CV_GRAY2RGB);
+  cv::cvtColor(img, img_rgb, cv::COLOR_GRAY2RGB);
   std::for_each(fts.begin(), fts.end(), [&](svo::Feature* i){
     cv::circle(img_rgb, cv::Point2f(i->px[0], i->px[1]), 4*(i->level+1), cv::Scalar(0,255,0), 1);
   });

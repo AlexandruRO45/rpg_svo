@@ -45,7 +45,7 @@ void FrameHandlerMono::initialize()
       new feature_detection::FastDetector(
           cam_->width(), cam_->height(), Config::gridSize(), Config::nPyrLevels()));
   DepthFilter::callback_t depth_filter_cb = boost::bind(
-      &MapPointCandidates::newCandidatePoint, &map_.point_candidates_, _1, _2);
+      &MapPointCandidates::newCandidatePoint, &map_.point_candidates_, boost::placeholders::_1, boost::placeholders::_2);
   depth_filter_ = new DepthFilter(feature_detector, depth_filter_cb);
   depth_filter_->startThread();
 }
@@ -78,7 +78,7 @@ void FrameHandlerMono::addImage(const cv::Mat& img, const double timestamp)
   else if(stage_ == STAGE_FIRST_FRAME)
     res = processFirstFrame();
   else if(stage_ == STAGE_RELOCALIZING)
-    res = relocalizeFrame(SE3(Matrix3d::Identity(), Vector3d::Zero()),
+    res = relocalizeFrame(SE3d(Matrix3d::Identity(), Vector3d::Zero()),
                           map_.getClosestKeyframe(last_frame_));
 
   // set last frame
@@ -90,7 +90,7 @@ void FrameHandlerMono::addImage(const cv::Mat& img, const double timestamp)
 
 FrameHandlerMono::UpdateResult FrameHandlerMono::processFirstFrame()
 {
-  new_frame_->T_f_w_ = SE3(Matrix3d::Identity(), Vector3d::Zero());
+  new_frame_->T_f_w_ = SE3d(Matrix3d::Identity(), Vector3d::Zero());
   if(klt_homography_init_.addFirstFrame(new_frame_) == initialization::FAILURE)
     return RESULT_NO_KEYFRAME;
   new_frame_->setKeyframe();
@@ -235,7 +235,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
 }
 
 FrameHandlerMono::UpdateResult FrameHandlerMono::relocalizeFrame(
-    const SE3& T_cur_ref,
+    const SE3d& T_cur_ref,
     FramePtr ref_keyframe)
 {
   SVO_WARN_STREAM_THROTTLE(1.0, "Relocalizing frame");
@@ -249,7 +249,7 @@ FrameHandlerMono::UpdateResult FrameHandlerMono::relocalizeFrame(
   size_t img_align_n_tracked = img_align.run(ref_keyframe, new_frame_);
   if(img_align_n_tracked > 30)
   {
-    SE3 T_f_w_last = last_frame_->T_f_w_;
+    SE3d T_f_w_last = last_frame_->T_f_w_;
     last_frame_ = ref_keyframe;
     FrameHandlerMono::UpdateResult res = processFrame();
     if(res != RESULT_FAILURE)
@@ -266,7 +266,7 @@ FrameHandlerMono::UpdateResult FrameHandlerMono::relocalizeFrame(
 
 bool FrameHandlerMono::relocalizeFrameAtPose(
     const int keyframe_id,
-    const SE3& T_f_kf,
+    const SE3d& T_f_kf,
     const cv::Mat& img,
     const double timestamp)
 {
@@ -318,8 +318,8 @@ void FrameHandlerMono::setCoreKfs(size_t n_closest)
 {
   size_t n = min(n_closest, overlap_kfs_.size()-1);
   std::partial_sort(overlap_kfs_.begin(), overlap_kfs_.begin()+n, overlap_kfs_.end(),
-                    boost::bind(&pair<FramePtr, size_t>::second, _1) >
-                    boost::bind(&pair<FramePtr, size_t>::second, _2));
+                    boost::bind(&std::pair<FramePtr, size_t>::second, boost::placeholders::_1) >
+                    boost::bind(&std::pair<FramePtr, size_t>::second, boost::placeholders::_2));
   std::for_each(overlap_kfs_.begin(), overlap_kfs_.end(), [&](pair<FramePtr,size_t>& i){ core_kfs_.insert(i.first); });
 }
 

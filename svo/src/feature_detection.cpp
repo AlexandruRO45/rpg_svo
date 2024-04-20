@@ -73,7 +73,7 @@ void FastDetector::detect(
   for(int L=0; L<n_pyr_levels_; ++L)
   {
     const int scale = (1<<L);
-    vector<fast::fast_xy> fast_corners;
+    std::vector<fast::fast_xy> fast_corners;
 #if __SSE2__
       fast::fast_corner_detect_10_sse2(
           (fast::fast_byte*) img_pyr[L].data, img_pyr[L].cols,
@@ -87,7 +87,7 @@ void FastDetector::detect(
           (fast::fast_byte*) img_pyr[L].data, img_pyr[L].cols,
           img_pyr[L].rows, img_pyr[L].cols, 20, fast_corners);
 #endif
-    vector<int> scores, nm_corners;
+    std::vector<int> scores, nm_corners;
     fast::fast_corner_score_10((fast::fast_byte*) img_pyr[L].data, img_pyr[L].cols, fast_corners, 20, scores);
     fast::fast_nonmax_3x3(fast_corners, scores, nm_corners);
 

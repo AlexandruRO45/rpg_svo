@@ -119,7 +119,7 @@ public:
   void getSeedsCopy(const FramePtr& frame, std::list<Seed>& seeds);
 
   /// Return a reference to the seeds. This is NOT THREAD SAFE!
-  std::list<Seed>& getSeeds() { return seeds_; }
+  std::list<Seed, Eigen::aligned_allocator<Seed>>& getSeeds() { return seeds_; }
 
   /// Bayes update of the seed, x is the measurement, tau2 the measurement uncertainty
   static void updateSeed(
@@ -129,7 +129,7 @@ public:
 
   /// Compute the uncertainty of the measurement.
   static double computeTau(
-      const SE3& T_ref_cur,
+      const SE3d& T_ref_cur,
       const Vector3d& f,
       const double z,
       const double px_error_angle);
@@ -137,7 +137,7 @@ public:
 protected:
   feature_detection::DetectorPtr feature_detector_;
   callback_t seed_converged_cb_;
-  std::list<Seed> seeds_;
+  std::list<Seed, Eigen::aligned_allocator<Seed>> seeds_;
   boost::mutex seeds_mut_;
   bool seeds_updating_halt_;            //!< Set this value to true when seeds updating should be interrupted.
   boost::thread* thread_;

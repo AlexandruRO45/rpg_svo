@@ -30,7 +30,7 @@ namespace svo {
 class Feature;
 
 /// Optimize the pose of the frame by minimizing the photometric error of feature patches.
-class SparseImgAlign : public vk::NLLSSolver<6, SE3>
+class SparseImgAlign : public vk::NLLSSolver<6, SE3d>
 {
   static const int patch_halfsize_ = 2;
   static const int patch_size_ = 2*patch_halfsize_;
@@ -54,7 +54,7 @@ public:
 
   /// Return fisher information matrix, i.e. the Hessian of the log-likelihood
   /// at the converged state.
-  Matrix<double, 6, 6> getFisherInformation();
+  Eigen::Matrix<double, 6, 6> getFisherInformation();
 
 protected:
   FramePtr ref_frame_;            //!< reference frame, has depth for gradient pixels.
@@ -65,13 +65,13 @@ protected:
   int min_level_;                 //!< finest pyramid level for the alignment.
 
   // cache:
-  Matrix<double, 6, Dynamic, ColMajor> jacobian_cache_;
+  Eigen::Matrix<double, 6, Dynamic, ColMajor> jacobian_cache_;
   bool have_ref_patch_cache_;
   cv::Mat ref_patch_cache_;
   std::vector<bool> visible_fts_;
 
   void precomputeReferencePatches();
-  virtual double computeResiduals(const SE3& model, bool linearize_system, bool compute_weight_scale = false);
+  virtual double computeResiduals(const SE3d& model, bool linearize_system, bool compute_weight_scale = false);
   virtual int solve();
   virtual void update (const ModelType& old_model, ModelType& new_model);
   virtual void startIteration();

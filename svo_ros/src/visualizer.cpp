@@ -116,8 +116,8 @@ void Visualizer::publishMinimal(
     if(slam.stage() == FrameHandlerBase::STAGE_SECOND_FRAME)
     {
       // During initialization, draw lines.
-      const vector<cv::Point2f>& px_ref(slam.initFeatureTrackRefPx());
-      const vector<cv::Point2f>& px_cur(slam.initFeatureTrackCurPx());
+      const std::vector<cv::Point2f>& px_ref(slam.initFeatureTrackRefPx());
+      const std::vector<cv::Point2f>& px_cur(slam.initFeatureTrackCurPx());
       for(vector<cv::Point2f>::const_iterator it_ref=px_ref.begin(), it_cur=px_cur.begin();
           it_ref != px_ref.end(); ++it_ref, ++it_cur)
         cv::line(img_rgb,
@@ -164,20 +164,20 @@ void Visualizer::publishMinimal(
   {
     Quaterniond q;
     Vector3d p;
-    Matrix<double,6,6> Cov;
+    Eigen::Matrix<double,6,6> Cov;
     if(publish_world_in_cam_frame_)
     {
       // publish world in cam frame
-      SE3 T_cam_from_world(frame->T_f_w_* T_world_from_vision_);
-      q = Quaterniond(T_cam_from_world.rotation_matrix());
+      SE3d T_cam_from_world(frame->T_f_w_* T_world_from_vision_);
+      q = Quaterniond(T_cam_from_world.rotationMatrix());
       p = T_cam_from_world.translation();
       Cov = frame->Cov_;
     }
     else
     {
       // publish cam in world frame
-      SE3 T_world_from_cam(T_world_from_vision_*frame->T_f_w_.inverse());
-      q = Quaterniond(T_world_from_cam.rotation_matrix()*T_world_from_vision_.rotation_matrix().transpose());
+      SE3d T_world_from_cam(T_world_from_vision_*frame->T_f_w_.inverse());
+      q = Quaterniond(T_world_from_cam.rotationMatrix()*T_world_from_vision_.rotationMatrix().transpose());
       p = T_world_from_cam.translation();
       Cov = T_world_from_cam.Adj()*frame->Cov_*T_world_from_cam.inverse().Adj();
     }
@@ -198,7 +198,7 @@ void Visualizer::publishMinimal(
 
 void Visualizer::visualizeMarkers(
     const FramePtr& frame,
-    const set<FramePtr>& core_kfs,
+    const std::set<FramePtr>& core_kfs,
     const Map& map)
 {
   if(frame == NULL)
@@ -244,9 +244,9 @@ void Visualizer::removeDeletedPts(const Map& map)
 void Visualizer::displayKeyframeWithMps(const FramePtr& frame, int ts)
 {
   // publish keyframe
-  SE3 T_world_cam(T_world_from_vision_*frame->T_f_w_.inverse());
+  SE3d T_world_cam(T_world_from_vision_*frame->T_f_w_.inverse());
   vk::output_helper::publishFrameMarker(
-      pub_frames_, T_world_cam.rotation_matrix(),
+      pub_frames_, T_world_cam.rotationMatrix(),
       T_world_cam.translation(), "kfs", ros::Time::now(), frame->id_*10, 0, 0.015);
 
   // publish point cloud and links
@@ -298,8 +298,8 @@ void Visualizer::exportToDense(const FramePtr& frame)
     msg.max_depth = (float) max_z;
 
     // publish cam in world frame
-    SE3 T_world_from_cam(T_world_from_vision_*frame->T_f_w_.inverse());
-    Quaterniond q(T_world_from_cam.rotation_matrix());
+    SE3d T_world_from_cam(T_world_from_vision_*frame->T_f_w_.inverse());
+    Quaterniond q(T_world_from_cam.rotationMatrix());
     Vector3d p(T_world_from_cam.translation());
 
     msg.pose.position.x = p[0];

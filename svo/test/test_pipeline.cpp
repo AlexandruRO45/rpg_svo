@@ -14,19 +14,19 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#include <svo/config.h>
+//#include <svo/config.h>
 #include <svo/frame_handler_mono.h>
-#include <svo/map.h>
+//#include <svo/map.h>
 #include <svo/frame.h>
 #include <vector>
 #include <string>
-#include <vikit/math_utils.h>
-#include <vikit/vision.h>
+//#include <vikit/math_utils.h>
+//#include <vikit/vision.h>
 #include <vikit/abstract_camera.h>
 #include <vikit/atan_camera.h>
 #include <vikit/pinhole_camera.h>
 #include <opencv2/opencv.hpp>
-#include <sophus/se3.h>
+//#include <sophus/se3.hpp>
 #include <iostream>
 #include "test_utils.h"
 

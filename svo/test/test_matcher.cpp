@@ -53,8 +53,8 @@ class MatcherTest {
     Eigen::Vector3d t_w_cur(0.5673, 0.5641, 2.0000);
     Eigen::Quaterniond q_w_ref(0.0, 0.8227, 0.2149, 0.0);
     Eigen::Quaterniond q_w_cur(0.0, 0.8235, 0.2130, 0.0);
-    frame_ref_->T_f_w_ = Sophus::SE3(q_w_ref, t_w_ref).inverse();
-    frame_cur_->T_f_w_ = Sophus::SE3(q_w_cur, t_w_cur).inverse();
+    frame_ref_->T_f_w_ = Sophus::SE3d(q_w_ref, t_w_ref).inverse();
+    frame_cur_->T_f_w_ = Sophus::SE3d(q_w_cur, t_w_cur).inverse();
 
     // load ground-truth depth
     vk::blender_utils::loadBlenderDepthmap(dataset_dir+"/depth/frame_000002_0.depth", *cam_, depth_ref_);
@@ -152,7 +152,7 @@ void MatcherTest::testWarpAffine()
   svo::Matcher matcher;
   double depth = 1.0;
 
-  Sophus::SE3 T_cur_ref(frame_cur_->T_f_w_*frame_ref_->T_f_w_.inverse());
+  Sophus::SE3d T_cur_ref(frame_cur_->T_f_w_*frame_ref_->T_f_w_.inverse());
   Eigen::Vector2d px_cur(frame_cur_->cam_->world2cam(T_cur_ref*(ref_ftr_->f*depth)));
 
   // compute reference patch

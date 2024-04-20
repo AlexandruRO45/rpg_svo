@@ -61,7 +61,7 @@ public:
   bool publish_world_in_cam_frame_;
   bool publish_map_every_frame_;
   ros::Duration publish_points_display_time_;
-  SE3 T_world_from_vision_;
+  SE3d T_world_from_vision_;
 
   Visualizer();
 
@@ -75,7 +75,7 @@ public:
 
   void visualizeMarkers(
       const FramePtr& frame,
-      const set<FramePtr>& core_kfs,
+      const std::set<FramePtr>& core_kfs,
       const Map& map);
 
   void publishMapRegion(set<FramePtr> frames);

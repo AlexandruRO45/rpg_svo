@@ -15,14 +15,14 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <algorithm>
-#include <stdexcept>
+//#include <stdexcept>
 #include <svo/reprojector.h>
-#include <svo/frame.h>
+//#include <svo/frame.h>
 #include <svo/point.h>
 #include <svo/feature.h>
 #include <svo/map.h>
 #include <svo/config.h>
-#include <boost/bind.hpp>
+#include <boost/bind/bind.hpp>
 #include <boost/thread.hpp>
 #include <vikit/abstract_camera.h>
 #include <vikit/math_utils.h>
@@ -69,12 +69,12 @@ void Reprojector::reprojectMap(
 
   // Identify those Keyframes which share a common field of view.
   SVO_START_TIMER("reproject_kfs");
-  list< pair<FramePtr,double> > close_kfs;
+  std::list< std::pair<FramePtr,double> > close_kfs;
   map_.getCloseKeyframes(frame, close_kfs);
 
   // Sort KFs with overlap according to their closeness
-  close_kfs.sort(boost::bind(&std::pair<FramePtr, double>::second, _1) <
-                 boost::bind(&std::pair<FramePtr, double>::second, _2));
+  close_kfs.sort(boost::bind(&std::pair<FramePtr, double>::second, boost::placeholders::_1) <
+                 boost::bind(&std::pair<FramePtr, double>::second, boost::placeholders::_2));
 
   // Reproject all mappoints of the closest N kfs with overlap. We only store
   // in which grid cell the points fall.
@@ -84,7 +84,7 @@ void Reprojector::reprojectMap(
       it_frame!=ite_frame && n<options_.max_n_kfs; ++it_frame, ++n)
   {
     FramePtr ref_frame = it_frame->first;
-    overlap_kfs.push_back(pair<FramePtr,size_t>(ref_frame,0));
+    overlap_kfs.push_back(std::pair<FramePtr,size_t>(ref_frame,0));
 
     // Try to reproject each mappoint that the other KF observes
     for(auto it_ftr=ref_frame->fts_.begin(), ite_ftr=ref_frame->fts_.end();
@@ -150,7 +150,7 @@ bool Reprojector::pointQualityComparator(Candidate& lhs, Candidate& rhs)
 
 bool Reprojector::reprojectCell(Cell& cell, FramePtr frame)
 {
-  cell.sort(boost::bind(&Reprojector::pointQualityComparator, _1, _2));
+  cell.sort(boost::bind(&Reprojector::pointQualityComparator, boost::placeholders::_1, boost::placeholders::_2));
   Cell::iterator it=cell.begin();
   while(it!=cell.end())
   {

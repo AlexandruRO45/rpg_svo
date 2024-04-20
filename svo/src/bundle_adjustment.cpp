@@ -51,7 +51,7 @@ void twoViewBA(
   g2o::SparseOptimizer optimizer;
   setupG2o(&optimizer);
 
-  list<EdgeContainerSE3> edges;
+  std::list<EdgeContainerSE3d> edges;
   size_t v_id = 0;
 
   // New Keyframe Vertex 1: This Keyframe is set to fixed!
@@ -88,9 +88,9 @@ void twoViewBA(
   printf("2-View BA: Error before/after = %f / %f\n", init_error, final_error);
 
   // Update Keyframe Positions
-  frame1->T_f_w_.rotation_matrix() = v_frame1->estimate().rotation().toRotationMatrix();
+  frame1->T_f_w_.rotationMatrix() = v_frame1->estimate().rotation().toRotationMatrix();
   frame1->T_f_w_.translation() = v_frame1->estimate().translation();
-  frame2->T_f_w_.rotation_matrix() = v_frame2->estimate().rotation().toRotationMatrix();
+  frame2->T_f_w_.rotationMatrix() = v_frame2->estimate().rotation().toRotationMatrix();
   frame2->T_f_w_.translation() = v_frame2->estimate().translation();
 
   // Update Mappoint Positions
@@ -105,7 +105,7 @@ void twoViewBA(
   // Find Mappoints with too large reprojection error
   const double reproj_thresh_squared = reproj_thresh*reproj_thresh;
   size_t n_incorrect_edges = 0;
-  for(list<EdgeContainerSE3>::iterator it_e = edges.begin(); it_e != edges.end(); ++it_e)
+  for(list<EdgeContainerSE3d>::iterator it_e = edges.begin(); it_e != edges.end(); ++it_e)
     if(it_e->edge->chi2() > reproj_thresh_squared)
     {
       if(it_e->feature->point != NULL)
@@ -121,7 +121,7 @@ void twoViewBA(
 
 void localBA(
     Frame* center_kf,
-    set<FramePtr>* core_kfs,
+    std::set<FramePtr>* core_kfs,
     Map* map,
     size_t& n_incorrect_edges_1,
     size_t& n_incorrect_edges_2,
@@ -133,9 +133,9 @@ void localBA(
   g2o::SparseOptimizer optimizer;
   setupG2o(&optimizer);
 
-  list<EdgeContainerSE3> edges;
-  set<Point*> mps;
-  list<Frame*> neib_kfs;
+  std::list<EdgeContainerSE3d> edges;
+  std::set<Point*> mps;
+  std::list<Frame*> neib_kfs;
   size_t v_id = 0;
   size_t n_mps = 0;
   size_t n_fix_kfs = 0;
@@ -172,7 +172,7 @@ void localBA(
     ++n_mps;
 
     // Add edges
-    list<Feature*>::iterator it_obs=(*it_pt)->obs_.begin();
+    std::list<Feature*>::iterator it_obs=(*it_pt)->obs_.begin();
     while(it_obs!=(*it_pt)->obs_.end())
     {
       Vector2d error = vk::project2d((*it_obs)->f) - vk::project2d((*it_obs)->frame->w2f((*it_pt)->pos_));
@@ -219,7 +219,7 @@ void localBA(
   // Update Keyframes
   for(set<FramePtr>::iterator it = core_kfs->begin(); it != core_kfs->end(); ++it)
   {
-    (*it)->T_f_w_ = SE3( (*it)->v_kf_->estimate().rotation(),
+    (*it)->T_f_w_ = SE3d( (*it)->v_kf_->estimate().rotation(),
                          (*it)->v_kf_->estimate().translation());
     (*it)->v_kf_ = NULL;
   }
@@ -236,7 +236,7 @@ void localBA(
 
   // Remove Measurements with too large reprojection error
   double reproj_thresh_2_squared = reproj_thresh_2*reproj_thresh_2;
-  for(list<EdgeContainerSE3>::iterator it = edges.begin(); it != edges.end(); ++it)
+  for(list<EdgeContainerSE3d>::iterator it = edges.begin(); it != edges.end(); ++it)
   {
     if(it->edge->chi2() > reproj_thresh_2_squared) //*(1<<it->feature_->level))
     {
@@ -256,8 +256,8 @@ void globalBA(Map* map)
   g2o::SparseOptimizer optimizer;
   setupG2o(&optimizer);
 
-  list<EdgeContainerSE3> edges;
-  list< pair<FramePtr,Feature*> > incorrect_edges;
+  std::list<EdgeContainerSE3d> edges;
+  std::list< std::pair<FramePtr,Feature*> > incorrect_edges;
 
   // Go through all Keyframes
   size_t v_id = 0;
@@ -312,7 +312,7 @@ void globalBA(Map* map)
   for(list<FramePtr>::iterator it_kf = map->keyframes_.begin();
         it_kf != map->keyframes_.end(); ++it_kf)
   {
-    (*it_kf)->T_f_w_ = SE3( (*it_kf)->v_kf_->estimate().rotation(),
+    (*it_kf)->T_f_w_ = SE3d( (*it_kf)->v_kf_->estimate().rotation(),
                             (*it_kf)->v_kf_->estimate().translation());
     (*it_kf)->v_kf_ = NULL;
     for(Features::iterator it_ftr=(*it_kf)->fts_.begin(); it_ftr!=(*it_kf)->fts_.end(); ++it_ftr)
@@ -328,12 +328,12 @@ void globalBA(Map* map)
   }
 
   // Remove Measurements with too large reprojection error
-  for(list< pair<FramePtr,Feature*> >::iterator it=incorrect_edges.begin();
+  for(list< std::pair<FramePtr,Feature*> >::iterator it=incorrect_edges.begin();
       it!=incorrect_edges.end(); ++it)
     map->removePtFrameRef(it->first.get(), it->second);
 
   double reproj_thresh_2_squared = reproj_thresh_2*reproj_thresh_2;
-  for(list<EdgeContainerSE3>::iterator it = edges.begin(); it != edges.end(); ++it)
+  for(list<EdgeContainerSE3d>::iterator it = edges.begin(); it != edges.end(); ++it)
   {
     if(it->edge->chi2() > reproj_thresh_2_squared)
     {
