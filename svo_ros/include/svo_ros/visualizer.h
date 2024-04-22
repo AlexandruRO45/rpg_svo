@@ -17,21 +17,25 @@
 #ifndef SVO_VISUALIZER_H_
 #define SVO_VISUALIZER_H_
 
+// TODO sort
 #include <queue>
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 #include <svo/global.h>
-#include <visualization_msgs/Marker.h>
-#include <visualization_msgs/MarkerArray.h>
-#include <nav_msgs/Odometry.h>
-#include <std_msgs/ColorRGBA.h>
-#include <sensor_msgs/Image.h>
-#include <sensor_msgs/CameraInfo.h>
+#include <visualization_msgs/msg/marker.hpp>
+#include <visualization_msgs/msg/marker_array.hpp>
+#include <nav_msgs/msg/odometry.hpp>
+//#include <std_msgs/msg/ColorRGBA.h>
+#include <sensor_msgs/msg/image.hpp>
+#include <sensor_msgs/msg/camera_info.hpp>
 #include <boost/lexical_cast.hpp>
-#include <tf/transform_broadcaster.h>
-#include <image_transport/image_transport.h>
+#include <tf2_ros/transform_broadcaster.h>
+#include <image_transport/image_transport.hpp>
 #include <boost/thread.hpp>
 #include <boost/shared_ptr.hpp>
 #include <iostream>
+#include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
+#include <svo_msgs/msg/dense_input.hpp>
+#include <svo_msgs/msg/info.hpp>
 
 namespace svo {
 
@@ -43,29 +47,29 @@ class FrameHandlerMono;
 typedef boost::shared_ptr<Frame> FramePtr;
 
 /// This class bundles all functions to publish visualisation messages.
-class Visualizer
+class Visualizer : public rclcpp::Node
 {
 public:
-  ros::NodeHandle pnh_;
   size_t trace_id_;
   size_t img_pub_level_;
   size_t img_pub_nth_;
   size_t dense_pub_nth_;
-  ros::Publisher pub_frames_;
-  ros::Publisher pub_points_;
-  ros::Publisher pub_pose_;
-  ros::Publisher pub_info_;
-  ros::Publisher pub_dense_;
+  rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr pub_frames_;
+  rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr pub_points_;
+  rclcpp::Publisher<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pub_pose_;
+  rclcpp::Publisher<svo_msgs::msg::Info>::SharedPtr pub_info_;
+  rclcpp::Publisher<svo_msgs::msg::DenseInput>::SharedPtr pub_dense_;
+  std::shared_ptr<image_transport::ImageTransport> image_transport_;
   image_transport::Publisher pub_images_;
-  tf::TransformBroadcaster br_;
+  std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
   bool publish_world_in_cam_frame_;
   bool publish_map_every_frame_;
-  ros::Duration publish_points_display_time_;
+  rclcpp::Duration publish_points_display_time_{0, 0};
   SE3d T_world_from_vision_;
 
   Visualizer();
-
-  ~Visualizer() {};
+  void post_construction();
+  ~Visualizer() = default;
 
   void publishMinimal(
       const cv::Mat& img,
@@ -78,7 +82,7 @@ public:
       const std::set<FramePtr>& core_kfs,
       const Map& map);
 
-  void publishMapRegion(set<FramePtr> frames);
+  void publishMapRegion(std::set<FramePtr> frames);
 
   void removeDeletedPts(const Map& map);
 

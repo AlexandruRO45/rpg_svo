@@ -1,153 +1,146 @@
 ################################################################################
 # user build settings
 
-SET(TRACE TRUE)
-SET(HAVE_G2O FALSE) 
-SET(USE_ROS FALSE) # Set FALSE if you want to build this package without Catkin
-SET(DEBUG_OUTPUT TRUE) # Only relevant if build without ROS
+set(TRACE TRUE)
+set(HAVE_G2O FALSE)
+set(USE_ROS TRUE)
+set(DEBUG_OUTPUT TRUE) # Only relevant if build without ROS
 
 ################################################################################
 
-SET(PROJECT_NAME svo)
-CMAKE_MINIMUM_REQUIRED (VERSION 3.14)
-PROJECT(${PROJECT_NAME})
-SET(CMAKE_BUILD_TYPE Release) # Release, RelWithDebInfo
-SET(CMAKE_VERBOSE_MAKEFILE OFF)
-SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/CMakeModules/")
+set(PROJECT_NAME svo)
+cmake_minimum_required(VERSION 3.14)
+project(${PROJECT_NAME})
+set(CMAKE_BUILD_TYPE RelWithDebInfo) # Release, RelWithDebInfo, Debug
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/CMakeModules/")
+
+# Required so that svo_ros vo can find libfast.so
+# TODO why?
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 # Set definitions
-IF(TRACE)
-  ADD_DEFINITIONS(-DSVO_TRACE)
-ENDIF()
-IF(HAVE_G2O)
-  ADD_DEFINITIONS(-DUSE_BUNDLE_ADJUSTMENT)
-ENDIF()
-IF(USE_ROS)
-  ADD_DEFINITIONS(-DSVO_USE_ROS)
-ENDIF()
-IF(DEBUG_OUTPUT)
-  ADD_DEFINITIONS(-DSVO_DEBUG_OUTPUT)
-ENDIF()
+if(TRACE)
+  add_definitions(-DSVO_TRACE)
+endif()
+if(HAVE_G2O)
+  add_definitions(-DUSE_BUNDLE_ADJUSTMENT)
+endif()
+if(USE_ROS)
+  add_definitions(-DSVO_USE_ROS)
+endif()
+if(DEBUG_OUTPUT)
+  add_definitions(-DSVO_DEBUG_OUTPUT)
+endif()
 
 # Set build flags, set ARM_ARCHITECTURE environment variable on Odroid
 # Set build flags. Set IS_ARM on odroid board as environment variable
-SET(CMAKE_CXX_FLAGS "-Wall -D_LINUX -D_REENTRANT -march=native -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unknown-pragmas")
-IF(DEFINED ENV{ARM_ARCHITECTURE})
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mfpu=neon -march=armv7-a")
-ELSE()
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mmmx -msse -msse -msse2 -msse3 -mssse3")
-ENDIF()
-IF(CMAKE_COMPILER_IS_GNUCC)
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
-ELSE()
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-ENDIF()
-SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3 -fsee -fomit-frame-pointer -fno-signed-zeros -fno-math-errno -funroll-loops")
+set(CMAKE_CXX_FLAGS "-Wall -D_LINUX -D_REENTRANT -march=native -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unknown-pragmas")
+if(DEFINED ENV{ARM_ARCHITECTURE})
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mfpu=neon -march=armv7-a")
+else()
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mmmx -msse -msse -msse2 -msse3 -mssse3")
+endif()
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3 -fsee -fomit-frame-pointer -fno-signed-zeros -fno-math-errno -funroll-loops")
 
-# Add debug symbols
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
+find_package(Boost REQUIRED COMPONENTS thread system)
+find_package(Eigen3 REQUIRED)
+find_package(fast REQUIRED)
+find_package(OpenCV REQUIRED)
+find_package(Sophus REQUIRED)
+find_package(vikit_common REQUIRED)
 
-# Add plain cmake packages 
-FIND_PACKAGE(OpenCV REQUIRED)
-FIND_PACKAGE(Eigen REQUIRED)
-FIND_PACKAGE(Sophus REQUIRED)
-FIND_PACKAGE(fast REQUIRED)
-FIND_PACKAGE(Boost REQUIRED COMPONENTS thread system)
+if(USE_ROS)
+  find_package(ament_cmake REQUIRED)
+  find_package(rclcpp REQUIRED)
+else()
+  set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
+  set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
+endif()
 
-IF(USE_ROS)
-  FIND_PACKAGE(catkin REQUIRED COMPONENTS roscpp roslib cmake_modules vikit_common vikit_ros)
-  catkin_package(
-      DEPENDS Eigen OpenCV Sophus Boost fast
-      CATKIN_DEPENDS roscpp roslib vikit_common vikit_ros
-      INCLUDE_DIRS include
-      LIBRARIES svo
-  )
-ELSE()
-  FIND_PACKAGE(vikit_common REQUIRED)
-  SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
-  SET(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
-ENDIF()
-
-# Include dirs
-INCLUDE_DIRECTORIES(
+include_directories(
   include
-  ${Eigen_INCLUDE_DIRS}
-  ${OpenCV_INCLUDE_DIRS}
-  ${Boost_INCLUDE_DIRS}
-  ${fast_INCLUDE_DIRS}
-)
+  ${fast_INCLUDE_DIRS})
+
+message(STATUS "fast libraries: ${fast_LIBRARIES}")
 
 # Set link libraries
-LIST(APPEND LINK_LIBS 
+list(APPEND LINK_LIBS
+  ${Boost_LIBRARIES}
+  Eigen3::Eigen
+  ${fast_LIBRARIES}
   ${OpenCV_LIBS}
   Sophus::Sophus
-  ${Boost_LIBRARIES}
-  ${fast_LIBRARIES}
-)
-
-IF(USE_ROS)
-  INCLUDE_DIRECTORIES(${catkin_INCLUDE_DIRS})
-  LIST(APPEND LINK_LIBS ${catkin_LIBRARIES})
-ELSE()
-  INCLUDE_DIRECTORIES(${vikit_common_INCLUDE_DIRS})
-  LIST(APPEND LINK_LIBS ${vikit_common_LIBRARIES})
-ENDIF()
+  vikit_common::vikit_common)  # TODO handle non-ROS case
 
 # Set sourcefiles
-LIST(APPEND SOURCEFILES
-  src/frame_handler_mono.cpp
-  src/frame_handler_base.cpp
-  src/frame.cpp
-  src/point.cpp
-  src/map.cpp
-  src/pose_optimizer.cpp
-  src/initialization.cpp
-  src/matcher.cpp
-  src/reprojector.cpp
+list(APPEND SOURCEFILES
+  src/config.cpp
+  src/depth_filter.cpp
   src/feature_alignment.cpp
   src/feature_detection.cpp
-  src/depth_filter.cpp
-  src/config.cpp
+  src/frame.cpp
+  src/frame_handler_mono.cpp
+  src/frame_handler_base.cpp
+  src/initialization.cpp
+  src/map.cpp
+  src/matcher.cpp
+  src/point.cpp
+  src/pose_optimizer.cpp
+  src/reprojector.cpp
   src/sparse_img_align.cpp)
 
 # Add g2o if available
-IF(HAVE_G2O)
-  FIND_PACKAGE(G2O REQUIRED)
-  INCLUDE_DIRECTORIES(
+if(HAVE_G2O)
+  find_package(G2O REQUIRED)
+  include_directories(
     ${G2O_INCLUDE_DIR}
-    /usr/include/suitesparse # for cholmod
-  )
-  LIST(APPEND LINK_LIBS
+    /usr/include/suitesparse) # for cholmod
+  list(APPEND LINK_LIBS
     ${G2O_CORE_LIBRARY} ${G2O_STUFF_LIBRARY} ${G2O_SOLVER_CHOLMOD} ${G2O_SOLVER_CSPARSE} ${G2O_SOLVER_DENSE}
-    ${G2O_SOLVER_PCG} ${G2O_TYPES_SBA} cholmod cxsparse
-  )
-  LIST(APPEND SOURCEFILES src/bundle_adjustment.cpp)
-ENDIF(HAVE_G2O)
+    ${G2O_SOLVER_PCG} ${G2O_TYPES_SBA} cholmod cxsparse)
+  list(APPEND SOURCEFILES src/bundle_adjustment.cpp)
+endif(HAVE_G2O)
 
 # Create svo library
-ADD_LIBRARY(svo SHARED ${SOURCEFILES})
-TARGET_LINK_LIBRARIES(svo ${LINK_LIBS})
+add_library(svo SHARED ${SOURCEFILES})
+
+if(USE_ROS)
+  # Modern CMake target
+  add_library(svo::svo ALIAS svo)
+endif()
+
+target_link_libraries(svo
+  ${LINK_LIBS}
+  rclcpp::rclcpp)
 
 ################################################################################
 # TESTS
 
-ADD_EXECUTABLE(test_feature_align test/test_feature_alignment.cpp)
-TARGET_LINK_LIBRARIES(test_feature_align svo)
+add_executable(test_feature_align test/test_feature_alignment.cpp)
+target_link_libraries(test_feature_align svo)
 
-ADD_EXECUTABLE(test_pipeline test/test_pipeline.cpp)
-TARGET_LINK_LIBRARIES(test_pipeline svo)
+add_executable(test_pipeline test/test_pipeline.cpp)
+target_link_libraries(test_pipeline svo)
 
-ADD_EXECUTABLE(test_matcher test/test_matcher.cpp)
-TARGET_LINK_LIBRARIES(test_matcher svo)
+add_executable(test_matcher test/test_matcher.cpp)
+target_link_libraries(test_matcher svo)
 
-ADD_EXECUTABLE(test_feature_detection test/test_feature_detection.cpp)
-TARGET_LINK_LIBRARIES(test_feature_detection svo)
+add_executable(test_feature_detection test/test_feature_detection.cpp)
+target_link_libraries(test_feature_detection svo)
 
-ADD_EXECUTABLE(test_depth_filter test/test_depth_filter.cpp)
-TARGET_LINK_LIBRARIES(test_depth_filter svo)
+add_executable(test_depth_filter test/test_depth_filter.cpp)
+target_link_libraries(test_depth_filter svo)
 
-ADD_EXECUTABLE(test_sparse_img_align test/test_sparse_img_align.cpp)
-TARGET_LINK_LIBRARIES(test_sparse_img_align svo)
+add_executable(test_sparse_img_align test/test_sparse_img_align.cpp)
+target_link_libraries(test_sparse_img_align svo)
 
-ADD_EXECUTABLE(test_pose_optimizer test/test_pose_optimizer.cpp)
-TARGET_LINK_LIBRARIES(test_pose_optimizer svo)
+add_executable(test_pose_optimizer test/test_pose_optimizer.cpp)
+target_link_libraries(test_pose_optimizer svo)
+
+if(USE_ROS)
+  install(TARGETS ${PROJECT_NAME} EXPORT svo_targets INCLUDES DESTINATION include)
+  install(DIRECTORY include/ DESTINATION include)  # Note trailing /
+  ament_export_targets(svo_targets)
+  ament_export_dependencies(fast rclcpp)
+  ament_package()
+endif()

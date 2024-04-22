@@ -18,8 +18,8 @@
 #define SVO_CONFIG_H_
 
 #include <string>
-#include <stdint.h>
-#include <stdio.h>
+#include <cstdint>
+#include <cstdio>
 
 namespace svo {
 
@@ -32,6 +32,7 @@ class Config
 {
 public:
   static Config& getInstance();
+  static void setInstance(const Config& config);
 
   /// Base-name of the tracefiles.
   static string& traceName() { return getInstance().trace_name; }
@@ -119,10 +120,41 @@ public:
   /// If within one frame, this amount of features are dropped. Tracking quality is bad.
   static int& qualityMaxFtsDrop() { return getInstance().quality_max_drop_fts; }
 
-private:
   Config();
-  Config(Config const&);
-  void operator=(Config const&);
+
+  Config(
+    string trace_name_,
+    string trace_dir_,
+    size_t n_pyr_levels_,
+    bool use_imu_,
+    size_t core_n_kfs_,
+    double map_scale_,
+    size_t grid_size_,
+    double init_min_disparity_,
+    size_t init_min_tracked_,
+    size_t init_min_inliers_,
+    size_t klt_max_level_,
+    size_t klt_min_level_,
+    double reproj_thresh_,
+    double poseoptim_thresh_,
+    size_t poseoptim_num_iter_,
+    size_t structureoptim_max_pts_,
+    size_t structureoptim_num_iter_,
+    double loba_thresh_,
+    double loba_robust_huber_width_,
+    size_t loba_num_iter_,
+    double kfselect_mindist_,
+    double triang_min_corner_score_,
+    size_t triang_half_patch_size_,
+    size_t subpix_n_iter_,
+    size_t max_n_kfs_,
+    double img_imu_delay_,
+    size_t max_fts_,
+    size_t quality_min_fts_,
+    int quality_max_drop_fts_
+  );
+
+private:
   string trace_name;
   string trace_dir;
   size_t n_pyr_levels;
@@ -153,6 +185,8 @@ private:
   size_t quality_min_fts;
   int quality_max_drop_fts;
 };
+
+extern Config instance;
 
 } // namespace svo
 

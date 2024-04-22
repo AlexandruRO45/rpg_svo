@@ -1,35 +1,20 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.14)
 project(svo_msgs)
 
-# search for everything we need to build the messages, dont forget the message_generation
-find_package(catkin REQUIRED COMPONENTS
-  message_generation
-  geometry_msgs
-  sensor_msgs
-)
+if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.27")
+  # Avoid error messages in CLion + ROS2 Humble, can be removed for ROS2 Iron
+  cmake_policy(SET CMP0148 OLD)
+endif()
 
-# search for all msg files
-FILE(GLOB messages_to_build RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}/msg"
-    "${CMAKE_CURRENT_SOURCE_DIR}/msg/*.msg")
+find_package(ament_cmake_auto REQUIRED)
+ament_auto_find_build_dependencies()
 
-# notify catkin to look at the previously found msg files
-add_message_files(
-  FILES
-  ${messages_to_build}
-)
+# Generate ROS messages
+rosidl_generate_interfaces(${PROJECT_NAME}
+  msg/DenseInput.msg
+  msg/Feature.msg
+  msg/Info.msg
+  msg/NbvTrajectory.msg
+  DEPENDENCIES geometry_msgs sensor_msgs std_msgs)
 
-# build the header files from the msg files, and notify catkin about the dependencies
-generate_messages(
-  DEPENDENCIES
-  geometry_msgs
-  sensor_msgs
-)
-
-# export the dependencis of this package for who ever depends on us
-catkin_package(
-  CATKIN_DEPENDS message_runtime geometry_msgs
-)
-
-include_directories(
-  ${catkin_INCLUDE_DIRS}
-)
+ament_auto_package()

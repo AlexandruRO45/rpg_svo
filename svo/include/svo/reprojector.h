@@ -49,8 +49,8 @@ public:
     {}
   } options_;
 
-  size_t n_matches_;
-  size_t n_trials_;
+  size_t n_matches_{};
+  size_t n_trials_{};
 
   Reprojector(vk::AbstractCamera* cam, Map& map);
 
