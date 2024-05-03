@@ -65,7 +65,7 @@ public:
 BenchmarkNode::BenchmarkNode(ros::NodeHandle& nh) :
     vo_(NULL),
     frame_count_(0),
-    img_noise_sigma_(vk::getParam<double>("svo/dataset_noise_sigma", 0.0))
+    img_noise_sigma_(vk::getParam<double>("dataset_noise_sigma", 0.0))
 {
   // Create Camera
   if(!vk::camera_loader::loadFromRosNs("svo", cam_))
@@ -144,7 +144,7 @@ void BenchmarkNode::runBenchmark(const std::string& dataset_dir)
   dataset_reader.readAllEntries(dataset);
 
   // process dataset
-  int first_frame = vk::getParam<int>("svo/dataset_first_frame", 0);
+  int first_frame = vk::getParam<int>("dataset_first_frame", 0);
   for(auto it = dataset.begin(); it != dataset.end() && ros::ok(); ++it, ++frame_count_)
   {
     if(frame_count_ < first_frame)
@@ -262,8 +262,8 @@ int main(int argc, char** argv)
   ros::init(argc, argv, "svo");
   ros::NodeHandle nh;
   svo::BenchmarkNode benchmark(nh);
-  std::string benchmark_dir(vk::getParam<std::string>("svo/dataset_directory"));
-  if(vk::getParam<bool>("svo/dataset_is_blender", false))
+  std::string benchmark_dir(vk::getParam<std::string>("dataset_directory"));
+  if(vk::getParam<bool>("dataset_is_blender", false))
     benchmark.runBlenderBenchmark(benchmark_dir);
   else
     benchmark.runBenchmark(benchmark_dir);

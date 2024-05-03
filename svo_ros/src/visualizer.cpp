@@ -34,12 +34,12 @@ Visualizer() :
     T_world_from_vision_(Matrix3d::Identity(), Vector3d::Zero())
 {
   // Parameters
-  img_pub_level_ = declare_parameter("svo/publish_img_pyr_level", 0);
-  img_pub_nth_= declare_parameter("svo/publish_every_nth_img", 1);
-  dense_pub_nth_ = declare_parameter("svo/publish_every_nth_dense_input", 1);
-  publish_world_in_cam_frame_ = declare_parameter("svo/publish_world_in_cam_frame", true);
-  publish_map_every_frame_ = declare_parameter("svo/publish_map_every_frame", false);
-  double publish_points_display_time = declare_parameter("svo/publish_point_display_time", 0.0);
+  img_pub_level_ = declare_parameter("publish_img_pyr_level", 0);
+  img_pub_nth_= declare_parameter("publish_every_nth_img", 1);
+  dense_pub_nth_ = declare_parameter("publish_every_nth_dense_input", 1);
+  publish_world_in_cam_frame_ = declare_parameter("publish_world_in_cam_frame", true);
+  publish_map_every_frame_ = declare_parameter("publish_map_every_frame", false);
+  double publish_points_display_time = declare_parameter("publish_point_display_time", 0.0);
   publish_points_display_time_ = rclcpp::Duration::from_seconds(publish_points_display_time);
 
   // Marker publishers

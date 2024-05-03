@@ -47,6 +47,7 @@ class FrameHandlerMono;
 typedef boost::shared_ptr<Frame> FramePtr;
 
 /// This class bundles all functions to publish visualisation messages.
+// TODO this should not be a separate node, combine this w/ vo_node
 class Visualizer : public rclcpp::Node
 {
 public:

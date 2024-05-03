@@ -60,16 +60,16 @@ public:
 VoNode::VoNode() :
   Node("vo_node")
 {
-  publish_markers_= declare_parameter("svo/publish_markers", true);
-  publish_dense_input_= declare_parameter("svo/publish_dense_input", false);
+  publish_markers_= declare_parameter("publish_markers", true);
+  publish_dense_input_= declare_parameter("publish_dense_input", false);
 
   // Get initial position and orientation
-  auto init_rx = declare_parameter("svo/init_rx", 0.0);
-  auto init_ry = declare_parameter("svo/init_ry", 0.0);
-  auto init_rz = declare_parameter("svo/init_rz", 0.0);
-  auto init_tx = declare_parameter("svo/init_tx", 0.0);
-  auto init_ty = declare_parameter("svo/init_ty", 0.0);
-  auto init_tz = declare_parameter("svo/init_tz", 0.0);
+  auto init_rx = declare_parameter("init_rx", 0.0);
+  auto init_ry = declare_parameter("init_ry", 0.0);
+  auto init_rz = declare_parameter("init_rz", 0.0);
+  auto init_tx = declare_parameter("init_tx", 0.0);
+  auto init_ty = declare_parameter("init_ty", 0.0);
+  auto init_tz = declare_parameter("init_tz", 0.0);
 
   // Start visualizer with initial position and orientation
   visualizer_ = std::make_shared<svo::Visualizer>();
@@ -134,7 +134,7 @@ bool VoNode::post_construction()
     }
 
     // subscribe to cam msgs
-    std::string cam_topic = declare_parameter("svo/cam_topic", "camera/image_raw");
+    std::string cam_topic = declare_parameter("cam_topic", "camera/image_raw");
     image_transport_ = std::make_shared<image_transport::ImageTransport>(shared_from_this());
     sub_images_ = image_transport_->subscribe(
         cam_topic, 5,
@@ -145,13 +145,13 @@ bool VoNode::post_construction()
     vo_->start();
 
     // Start user input thread in parallel thread that listens to console keys
-    auto user_input = declare_parameter("svo/accept_console_user_input", false);
+    auto user_input = declare_parameter("accept_console_user_input", false);
     if (user_input) {
       user_input_thread_ = boost::make_shared<vk::UserInputThread>();
 
       // subscribe to remote input
       sub_remote_key_ = create_subscription<std_msgs::msg::String>(
-          "svo/remote_key", 5,
+          "remote_key", 5,
           [this](const std_msgs::msg::String::ConstSharedPtr& msg) -> void { remote_input_ = msg->data; });
     }
 
