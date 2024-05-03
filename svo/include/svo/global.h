@@ -20,9 +20,9 @@
 #include <list>
 #include <vector>
 #include <string>
-#include <stdint.h>
-#include <stdio.h>
-#include <math.h>
+#include <cstdint>
+#include <cstdio>
+#include <cmath>
 
 #include <Eigen/Core>
 #include <opencv2/opencv.hpp>
@@ -41,8 +41,6 @@ EIGEN_DEFINE_STL_VECTOR_SPECIALIZATION(Eigen::Vector2d)
   #define SVO_DEBUG_STREAM(x) RCLCPP_DEBUG_STREAM(rclcpp::get_logger("svo"), x)
   #define SVO_INFO_STREAM(x) RCLCPP_INFO_STREAM(rclcpp::get_logger("svo"), x)
   #define SVO_WARN_STREAM(x) RCLCPP_WARN_STREAM(rclcpp::get_logger("svo"), x)
-  // TODO
-  // #define SVO_WARN_STREAM_THROTTLE(rate, x) RCLCPP_WARN_STREAM_THROTTLE(rclcpp::get_logger("svo"), rclcpp::Clock(RCL_ROS_TIME), rate, x)
   #define SVO_ERROR_STREAM(x) RCLCPP_ERROR_STREAM(rclcpp::get_logger("svo"), x)
 #else
   #define SVO_INFO_STREAM(x) std::cerr<<"\033[0;0m[INFO] "<<x<<"\033[0;0m"<<std::endl;
@@ -54,21 +52,22 @@ EIGEN_DEFINE_STL_VECTOR_SPECIALIZATION(Eigen::Vector2d)
   #define SVO_WARN_STREAM(x) std::cerr<<"\033[0;33m[WARN] "<<x<<"\033[0;0m"<<std::endl;
   #define SVO_ERROR_STREAM(x) std::cerr<<"\033[1;31m[ERROR] "<<x<<"\033[0;0m"<<std::endl;
   #include <chrono> // Adapted from rosconsole. Copyright (c) 2008, Willow Garage, Inc.
-  #define SVO_WARN_STREAM_THROTTLE(rate, x) \
-    do { \
-      static double __log_stream_throttle__last_hit__ = 0.0; \
-      std::chrono::time_point<std::chrono::system_clock> __log_stream_throttle__now__ = \
-      std::chrono::system_clock::now(); \
-      if (__log_stream_throttle__last_hit__ + rate <= \
-          std::chrono::duration_cast<std::chrono::seconds>( \
-          __log_stream_throttle__now__.time_since_epoch()).count()) { \
-        __log_stream_throttle__last_hit__ = \
-        std::chrono::duration_cast<std::chrono::seconds>( \
-        __log_stream_throttle__now__.time_since_epoch()).count(); \
-        SVO_WARN_STREAM(x); \
-      } \
-    } while(0)
 #endif
+
+#define SVO_WARN_STREAM_THROTTLE(rate, x) \
+  do { \
+    static double __log_stream_throttle__last_hit__ = 0.0; \
+    std::chrono::time_point<std::chrono::system_clock> __log_stream_throttle__now__ = \
+    std::chrono::system_clock::now(); \
+    if (__log_stream_throttle__last_hit__ + rate <= \
+        std::chrono::duration_cast<std::chrono::seconds>( \
+        __log_stream_throttle__now__.time_since_epoch()).count()) { \
+      __log_stream_throttle__last_hit__ = \
+      std::chrono::duration_cast<std::chrono::seconds>( \
+      __log_stream_throttle__now__.time_since_epoch()).count(); \
+      SVO_WARN_STREAM(x); \
+    } \
+  } while(0)
 
 namespace svo
 {

@@ -150,9 +150,7 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
   SVO_DEBUG_STREAM("Reprojection:\t nPoints = "<<repr_n_mps<<"\t \t nMatches = "<<repr_n_new_references);
   if(repr_n_new_references < Config::qualityMinFts())
   {
-    // TODO
-    // SVO_WARN_STREAM_THROTTLE(1.0, "Not enough matched features.");
-    SVO_WARN_STREAM("Not enough matched features.");
+    SVO_WARN_STREAM_THROTTLE(1.0, "Not enough matched features.");
     new_frame_->T_f_w_ = last_frame_->T_f_w_; // reset to avoid crazy pose jumps
     tracking_quality_ = TRACKING_INSUFFICIENT;
     return RESULT_FAILURE;
@@ -240,9 +238,7 @@ FrameHandlerMono::UpdateResult FrameHandlerMono::relocalizeFrame(
     const SE3d& T_cur_ref,
     FramePtr ref_keyframe)
 {
-  // TODO
-  // SVO_WARN_STREAM_THROTTLE(1.0, "Relocalizing frame");
-  SVO_WARN_STREAM("Relocalizing frame");
+  SVO_WARN_STREAM_THROTTLE(1.0, "Relocalizing frame");
   if(ref_keyframe == nullptr)
   {
     SVO_INFO_STREAM("No reference keyframe.");
