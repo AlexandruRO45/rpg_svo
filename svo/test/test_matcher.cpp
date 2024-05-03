@@ -145,6 +145,7 @@ void MatcherTest::testEpipolarSearchFullImg()
   output_stream.close();
 }
 
+#if 0
 void MatcherTest::testWarpAffine()
 {
   const int halfpatch_size = 15;
@@ -188,6 +189,7 @@ void MatcherTest::testWarpAffine()
   cv::imshow("cur_img", frame_cur_->img_pyr_[level_cur]);
   cv::waitKey(0);
 }
+#endif
 
 }  // namespace
 

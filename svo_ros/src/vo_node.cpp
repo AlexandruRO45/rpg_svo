@@ -93,7 +93,7 @@ VoNode::~VoNode()
 void VoNode::set_config()
 {
   auto param_config = svo::Config(
-      declare_parameter("trace_name", "svo"),
+      declare_parameter("trace_name", "vo_node"),
       declare_parameter("trace_dir", "/tmp"),
       declare_parameter("n_pyr_levels", 3),
       declare_parameter("use_imu", false),
@@ -162,6 +162,7 @@ void VoNode::imgCb(const sensor_msgs::msg::Image::ConstSharedPtr &msg)
 {
   cv::Mat img;
   try {
+    // This will convert rgb to mono
     img = cv_bridge::toCvShare(msg, "mono8")->image;
   } catch (cv_bridge::Exception& e) {
     RCLCPP_ERROR(get_logger(), "cv_bridge exception: %s", e.what());

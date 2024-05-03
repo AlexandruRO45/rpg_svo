@@ -1,7 +1,7 @@
 set(PROJECT_NAME svo_ros)
 cmake_minimum_required (VERSION 3.14)
 project(${PROJECT_NAME})
-set(CMAKE_BUILD_TYPE RelWithDebInfo) # Release, RelWithDebInfo, Debug
+set(CMAKE_BUILD_TYPE Debug) # Release, RelWithDebInfo, Debug
 
 # Required so that svo_ros vo can find libfast.so
 # TODO why?
@@ -26,7 +26,8 @@ find_package(OpenCV REQUIRED)
 find_package(Sophus REQUIRED)
 
 # Create visualizer library
-ament_auto_add_library(svo_visualizer src/visualizer.cpp)
+ament_auto_add_library(svo_visualizer STATIC
+  src/visualizer.cpp)
 target_link_libraries(svo_visualizer
   ${Boost_LIBRARIES}
   Eigen3::Eigen
@@ -35,8 +36,9 @@ target_link_libraries(svo_visualizer
   Sophus::Sophus)
                                  
 # Create Executables                      
-ament_auto_add_executable(vo src/vo_node.cpp)
-target_link_libraries(vo
+ament_auto_add_executable(vo_node
+  src/vo_node.cpp)
+target_link_libraries(vo_node
   ${fast_LIBRARIES}  # TODO svo should export this dep
   svo_visualizer)
 
@@ -44,4 +46,4 @@ target_link_libraries(vo
 # ament_auto_add_executable(benchmark src/benchmark_node.cpp)
 # target_link_libraries(benchmark svo_visualizer)
 
-ament_auto_package()
+ament_auto_package(INSTALL_TO_SHARE config launch param)

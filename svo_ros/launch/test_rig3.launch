@@ -1,15 +1,15 @@
 <launch>
 
-  <node pkg="svo_ros" type="vo" name="svo" clear_params="true" output="screen">
+  <node pkg="svo_ros" exec="vo_node" output="screen">
 
     <!-- Camera topic to subscribe to -->
     <param name="cam_topic" value="/camera/image_raw" type="str" />
     
     <!-- Camera calibration file -->
-    <rosparam file="$(find svo_ros)/param/camera_atan.yaml" />
+    <param from="$(find svo_ros)/param/camera_atan.yaml" />
 
     <!-- Default parameter settings: choose between vo_fast and vo_accurate -->
-    <rosparam file="$(find svo_ros)/param/vo_fast.yaml" />
+    <param from="$(find svo_ros)/param/vo_fast.yaml" />
     
     <!-- Initial camera orientation, make it point downwards -->
     <param name="init_rx" value="3.14" />

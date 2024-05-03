@@ -1,4 +1,6 @@
-grid_size: 20
-max_n_kfs: 50
-loba_num_iter: 10
-max_fts: 200
+vo_node:
+  ros__parameters:
+    grid_size: 20
+    max_n_kfs: 50
+    loba_num_iter: 10
+    max_fts: 200

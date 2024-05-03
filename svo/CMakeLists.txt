@@ -102,7 +102,8 @@ if(HAVE_G2O)
 endif(HAVE_G2O)
 
 # Create svo library
-add_library(svo SHARED ${SOURCEFILES})
+add_library(svo STATIC
+  ${SOURCEFILES})
 
 if(USE_ROS)
   # Modern CMake target
