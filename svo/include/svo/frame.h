@@ -50,8 +50,8 @@ public:
   Eigen::Matrix<double, 6, 6>   Cov_;                   //!< Covariance.
   ImgPyr                        img_pyr_;               //!< Image Pyramid.
   Features                      fts_;                   //!< List of features in the image.
-  std::vector<Feature*>              key_pts_;               //!< Five features and associated 3D points which are used to detect if two frames have overlapping field of view.
-  bool                          is_keyframe_;           //!< Was this frames selected as keyframe?
+  std::vector<Feature*>         key_pts_;               //!< Five features and associated 3D points which are used to detect if two frames have overlapping field of view.
+  bool                          is_keyframe_;           //!< Was this frame selected as keyframe?
   g2oFrameSE3*                  v_kf_;                  //!< Temporary pointer to the g2o node object of the keyframe.
   int                           last_published_ts_;     //!< Timestamp of last publishing.
 
@@ -99,7 +99,7 @@ public:
   /// Transforms pixel coordinates (c) to frame unit sphere coordinates (f).
   inline Vector3d c2f(const double x, const double y) const { return cam_->cam2world(x, y); }
 
-  /// Transforms point coordinates in world-frame (w) to camera-frams (f).
+  /// Transforms point coordinates in world-frame (w) to camera-frame (f).
   inline Vector3d w2f(const Vector3d& xyz_w) const { return T_f_w_ * xyz_w; }
 
   /// Transforms point from frame unit sphere (f) frame to world coordinate frame (w).

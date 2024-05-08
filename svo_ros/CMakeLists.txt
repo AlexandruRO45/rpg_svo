@@ -23,6 +23,7 @@ find_package(Boost REQUIRED COMPONENTS system thread)
 find_package(Eigen3 REQUIRED)
 find_package(fast REQUIRED)  # TODO svo should export this dep
 find_package(OpenCV REQUIRED)
+find_package(PCL REQUIRED COMPONENTS common)
 find_package(Sophus REQUIRED)
 
 # Create visualizer library
@@ -33,6 +34,7 @@ target_link_libraries(svo_visualizer
   Eigen3::Eigen
   ${fast_LIBRARIES}  # TODO svo should export this dep
   ${OpenCV_LIBS}
+  ${PCL_COMMON_LIBRARIES}
   Sophus::Sophus)
                                  
 # Create Executables                      

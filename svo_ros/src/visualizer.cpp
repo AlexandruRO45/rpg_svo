@@ -34,6 +34,8 @@ Visualizer() :
     T_world_from_vision_(Matrix3d::Identity(), Vector3d::Zero())
 {
   // Parameters
+  world_frame_id_ = declare_parameter("world_frame_id", "world");
+  camera_frame_id_ = declare_parameter("camera_frame_id", "cam_pos");
   img_pub_level_ = declare_parameter("publish_img_pyr_level", 0);
   img_pub_nth_= declare_parameter("publish_every_nth_img", 1);
   dense_pub_nth_ = declare_parameter("publish_every_nth_dense_input", 1);
@@ -69,7 +71,7 @@ void Visualizer::publishMinimal(
 {
   ++trace_id_;
   std_msgs::msg::Header header_msg;
-  header_msg.frame_id = "/cam";
+  header_msg.frame_id = world_frame_id_;
   header_msg.stamp = rclcpp::Time(static_cast<int64_t>(timestamp * 1e9));
 
   // publish info msg.
@@ -159,6 +161,7 @@ void Visualizer::publishMinimal(
     pub_images_.publish(img_msg.toImageMsg());
   }
 
+  // TODO [rviz2]: Negative eigenvalue found for position. Is the covariance matrix correct (positive semidefinite)?
   if(pub_pose_->get_subscription_count() > 0 && slam.stage() == FrameHandlerBase::STAGE_DEFAULT_FRAME)
   {
     Quaterniond q;
@@ -203,18 +206,29 @@ void Visualizer::visualizeMarkers(
   if(frame == NULL)
     return;
 
-  vk::output_helper::publishTfTransform(
-      frame->T_f_w_*T_world_from_vision_.inverse(),
-      rclcpp::Time(static_cast<int64_t>(frame->timestamp_ * 1e9)), "cam_pos", "world", *tf_broadcaster_);
+  auto time = rclcpp::Time(static_cast<int64_t>(frame->timestamp_ * 1e9));
+
+  if (publish_world_in_cam_frame_) {
+    // Publish transform camera_frame_id_ -> world_frame_id_
+    vk::output_helper::publishTfTransform(
+        frame->T_f_w_ * T_world_from_vision_.inverse(),
+        time, camera_frame_id_, world_frame_id_, *tf_broadcaster_);
+  } else {
+    // Publish transform world_frame_id_ -> camera_frame_id_
+    vk::output_helper::publishTfTransform(
+        T_world_from_vision_ * frame->T_f_w_.inverse(),
+        time, world_frame_id_, camera_frame_id_, *tf_broadcaster_);
+  }
 
   if(pub_frames_->get_subscription_count() > 0 || pub_points_->get_subscription_count() > 0)
   {
     vk::output_helper::publishCameraMarker(
-        pub_frames_, "cam_pos", "cams", rclcpp::Time(static_cast<int64_t>(frame->timestamp_ * 1e9)),
-        1, 0.3, Vector3d(0.,0.,1.));
+        pub_frames_, camera_frame_id_, "cams", rclcpp::Time(static_cast<int64_t>(frame->timestamp_ * 1e9)),
+        1, 0.3, Vector3d(1.,0.,0.));
+
     vk::output_helper::publishPointMarker(
-        pub_points_, T_world_from_vision_*frame->pos(), "trajectory",
-        now(), trace_id_, 0, 0.006, Vector3d(0.,0.,0.5));
+        pub_points_, world_frame_id_, T_world_from_vision_*frame->pos(), "trajectory",
+        now(), trace_id_, 0, 0.06, Vector3d(0.,1.0,0.));
     if(frame->isKeyframe() || publish_map_every_frame_)
       publishMapRegion(core_kfs);
     removeDeletedPts(map);
@@ -236,7 +250,7 @@ void Visualizer::removeDeletedPts(const Map& map)
   if(pub_points_->get_subscription_count() > 0)
   {
     for(std::list<Point*>::const_iterator it=map.trash_points_.begin(); it!=map.trash_points_.end(); ++it)
-      vk::output_helper::publishPointMarker(pub_points_, Vector3d(), "pts", now(), (*it)->id_, 2, 0.006, Vector3d());
+      vk::output_helper::publishPointMarker(pub_points_, world_frame_id_, Vector3d(), "pts", now(), (*it)->id_, 2, 0.06, Vector3d());
   }
 }
 
@@ -245,7 +259,7 @@ void Visualizer::displayKeyframeWithMps(const FramePtr& frame, int ts)
   // publish keyframe
   SE3d T_world_cam(T_world_from_vision_*frame->T_f_w_.inverse());
   vk::output_helper::publishFrameMarker(
-      pub_frames_, T_world_cam.rotationMatrix(),
+      pub_frames_, world_frame_id_, T_world_cam.rotationMatrix(),
       T_world_cam.translation(), "kfs", now(), frame->id_*10, 0, 0.015);
 
   // publish point cloud and links
@@ -258,8 +272,8 @@ void Visualizer::displayKeyframeWithMps(const FramePtr& frame, int ts)
       continue;
 
     vk::output_helper::publishPointMarker(
-        pub_points_, T_world_from_vision_*(*it)->point->pos_, "pts",
-        now(), (*it)->point->id_, 0, 0.005, Vector3d(1.0, 0., 1.0),
+        pub_points_, world_frame_id_, T_world_from_vision_*(*it)->point->pos_, "pts",
+        now(), (*it)->point->id_, 0, 0.05, Vector3d(1.0, 1., 1.0),
         publish_points_display_time_);
     (*it)->point->last_published_ts_ = ts;
   }

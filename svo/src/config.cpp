@@ -25,7 +25,7 @@ Config::Config() :
     n_pyr_levels(3),
     use_imu(false),
     core_n_kfs(3),
-    map_scale(1.0),
+    map_scale(1.0),  // This should be set from some external source, e.g., sonar
     grid_size(25),
     init_min_disparity(50.0),
     init_min_tracked(50),

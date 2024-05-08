@@ -31,7 +31,37 @@
 #include <vikit/camera_loader.h>
 #include <vikit/user_input_thread.h>
 
+#include "pcl/point_cloud.h"
+#include "pcl/point_types.h"
+#include "pcl_conversions/pcl_conversions.h"
+#include "svo/feature.h"
+#include "svo/map.h"
+#include "svo/point.h"
+
 namespace svo {
+
+pcl::PointCloud<pcl::PointXYZI> map_to_pcl(const Map& map)
+{
+  pcl::PointCloud<pcl::PointXYZI> result;
+
+  for (auto & keyframe : map.keyframes_) {
+    for (auto & feature : keyframe->fts_) {
+      if (feature->point == nullptr) {
+        continue;
+      }
+
+      pcl::PointXYZI point = pcl::PointXYZI(
+          static_cast<float>(feature->point->pos_.x()),
+          static_cast<float>(feature->point->pos_.y()),
+          static_cast<float>(feature->point->pos_.z()),
+          static_cast<float>(feature->frame->id_));  // Unique id of the frame where this feature was detected
+
+      result.push_back(point);
+    }
+  }
+
+  return result;
+}
 
 /// SVO Interface
 class VoNode : public rclcpp::Node
@@ -48,12 +78,14 @@ public:
   bool quit_{false};
   std::shared_ptr<image_transport::ImageTransport> image_transport_;
   image_transport::Subscriber sub_images_;
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_map_;
 
   VoNode();
   ~VoNode() override;
   void set_config();
   bool post_construction();
   void imgCb(const sensor_msgs::msg::Image::ConstSharedPtr &msg);
+  void publish_map();
   void processUserActions();
 };
 
@@ -98,7 +130,7 @@ void VoNode::set_config()
       declare_parameter("n_pyr_levels", 3),
       declare_parameter("use_imu", false),
       declare_parameter("core_n_kfs", 3),
-      declare_parameter("map_scale", 1.0),
+      declare_parameter("map_scale", 1.0),  // This should be set from some external source, e.g., sonar
       declare_parameter("grid_size", 30),
       declare_parameter("init_min_disparity", 50.0),
       declare_parameter("init_min_tracked", 50),
@@ -133,7 +165,7 @@ bool VoNode::post_construction()
       return false;
     }
 
-    // subscribe to cam msgs
+    // Subscribe to cam msgs
     std::string cam_topic = declare_parameter("cam_topic", "camera/image_raw");
     image_transport_ = std::make_shared<image_transport::ImageTransport>(shared_from_this());
     sub_images_ = image_transport_->subscribe(
@@ -149,11 +181,14 @@ bool VoNode::post_construction()
     if (user_input) {
       user_input_thread_ = boost::make_shared<vk::UserInputThread>();
 
-      // subscribe to remote input
+      // Subscribe to remote input
       sub_remote_key_ = create_subscription<std_msgs::msg::String>(
           "remote_key", 5,
           [this](const std_msgs::msg::String::ConstSharedPtr& msg) -> void { remote_input_ = msg->data; });
     }
+
+    // Publish map
+    pub_map_ = create_publisher<sensor_msgs::msg::PointCloud2>("map", 10);
 
     return true;
   }
@@ -169,6 +204,9 @@ void VoNode::imgCb(const sensor_msgs::msg::Image::ConstSharedPtr &msg)
   }
   processUserActions();
   vo_->addImage(img, rclcpp::Time(msg->header.stamp).seconds());
+
+  publish_map();
+
   visualizer_->publishMinimal(img, vo_->lastFrame(), *vo_, rclcpp::Time(msg->header.stamp).seconds());
 
   if(publish_markers_ && vo_->stage() != FrameHandlerBase::STAGE_PAUSED)
@@ -179,6 +217,19 @@ void VoNode::imgCb(const sensor_msgs::msg::Image::ConstSharedPtr &msg)
 
   if(vo_->stage() == FrameHandlerMono::STAGE_PAUSED)
     usleep(100000);
+}
+
+void VoNode::publish_map()
+{
+  auto pc = map_to_pcl(vo_->map());
+  sensor_msgs::msg::PointCloud2 pc_msg;
+  pcl::toROSMsg(pc, pc_msg);
+
+  // The tf tree is sensitive to timestamps, so use the same timestamp calc
+  pc_msg.header.stamp = rclcpp::Time(static_cast<int64_t>(vo_->lastFrame()->timestamp_ * 1e9));
+  pc_msg.header.frame_id = visualizer_->world_frame_id_;
+
+  pub_map_->publish(pc_msg);
 }
 
 void VoNode::processUserActions()

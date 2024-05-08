@@ -51,6 +51,8 @@ typedef boost::shared_ptr<Frame> FramePtr;
 class Visualizer : public rclcpp::Node
 {
 public:
+  std::string world_frame_id_;
+  std::string camera_frame_id_;
   size_t trace_id_;
   size_t img_pub_level_;
   size_t img_pub_nth_;
