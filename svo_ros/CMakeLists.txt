@@ -48,4 +48,4 @@ target_link_libraries(vo_node
 # ament_auto_add_executable(benchmark src/benchmark_node.cpp)
 # target_link_libraries(benchmark svo_visualizer)
 
-ament_auto_package(INSTALL_TO_SHARE config launch param)
+ament_auto_package(INSTALL_TO_SHARE launch param)
