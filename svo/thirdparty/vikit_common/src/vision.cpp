@@ -47,13 +47,11 @@ void halfSampleSSE2(const unsigned char* in, unsigned char* out, int w, int h)
 #ifdef __ARM_NEON__
 void halfSampleNEON( const cv::Mat& in, cv::Mat& out )
 {
-  const int in_stride = in.step.p[0];
-  const int out_stride = out.step.p[0];
   for( int y = 0; y < in.rows; y += 2)
   {
-    const uint8_t * in_top = in.data + y*in_stride;
-    const uint8_t * in_bottom = in.data + (y+1)*in_stride;
-    uint8_t * out_data = out.data + (y >> 1)*out_stride;
+    const uint8_t * in_top = in.data + y*in.cols;
+    const uint8_t * in_bottom = in.data + (y+1)*in.cols;
+    uint8_t * out_data = out.data + (y >> 1)*out.cols;
     for( int x = in.cols; x > 0 ; x-=16, in_top += 16, in_bottom += 16, out_data += 8)
     {
       uint8x8x2_t top  = vld2_u8( (const uint8_t *)in_top );
@@ -76,17 +74,12 @@ halfSample(const cv::Mat& in, cv::Mat& out)
   assert( in.type()==CV_8U && out.type()==CV_8U);
 
 #ifdef __SSE2__
-  // TODO: make work for cropped images
-  if(is_aligned16(in.data)
-     && is_aligned16(out.data)
-     && ((in.cols % 16) == 0)
-     && static_cast<size_t>(in.cols) == in.step)
+  if(aligned_mem::is_aligned16(in.data) && aligned_mem::is_aligned16(out.data) && ((in.cols % 16) == 0))
   {
     halfSampleSSE2(in.data, out.data, in.cols, in.rows);
     return;
   }
-#endif
-
+#endif 
 #ifdef __ARM_NEON__ 
   if( (in.cols % 16) == 0 )
   {
@@ -95,20 +88,70 @@ halfSample(const cv::Mat& in, cv::Mat& out)
   }
 #endif
 
-  const int in_stride = in.step.p[0];
-  const int out_stride = out.step.p[0];
+  const int stride = in.step.p[0];
   uint8_t* top = (uint8_t*) in.data;
-  uint8_t* bottom = top + in_stride;
-  uint8_t* end = top + in_stride*in.rows;
+  uint8_t* bottom = top + stride;
+  uint8_t* end = top + stride*in.rows;
+  const int out_width = out.cols;
   uint8_t* p = (uint8_t*) out.data;
-  for (int y=0; y < out.rows && bottom < end; y++, top += in_stride*2, bottom += in_stride*2, p += out_stride)
+  while (bottom < end)
   {
-    for (int x=0; x < out.cols; x++)
+    for (int j=0; j<out_width; j++)
     {
-       p[x] = static_cast<uint8_t>( (uint16_t (top[x*2]) + top[x*2+1] + bottom[x*2] + bottom[x*2+1])/4 );
+      *p = static_cast<uint8_t>( (uint16_t (top[0]) + top[1] + bottom[0] + bottom[1])/4 );
+      p++;
+      top += 2;
+      bottom += 2;
     }
+    top += stride;
+    bottom += stride;
   }
 }
+
+
+float
+shiTomasiScore(const cv::Mat& img, int u, int v)
+{
+  assert(img.type() == CV_8UC1);
+
+  float dXX = 0.0;
+  float dYY = 0.0;
+  float dXY = 0.0;
+  const int halfbox_size = 4;
+  const int box_size = 2*halfbox_size;
+  const int box_area = box_size*box_size;
+  const int x_min = u-halfbox_size;
+  const int x_max = u+halfbox_size;
+  const int y_min = v-halfbox_size;
+  const int y_max = v+halfbox_size;
+
+  if(x_min < 1 || x_max >= img.cols-1 || y_min < 1 || y_max >= img.rows-1)
+    return 0.0; // patch is too close to the boundary
+
+  const int stride = img.step.p[0];
+  for( int y=y_min; y<y_max; ++y )
+  {
+    const uint8_t* ptr_left   = img.data + stride*y + x_min - 1;
+    const uint8_t* ptr_right  = img.data + stride*y + x_min + 1;
+    const uint8_t* ptr_top    = img.data + stride*(y-1) + x_min;
+    const uint8_t* ptr_bottom = img.data + stride*(y+1) + x_min;
+    for(int x = 0; x < box_size; ++x, ++ptr_left, ++ptr_right, ++ptr_top, ++ptr_bottom)
+    {
+      float dx = *ptr_right - *ptr_left;
+      float dy = *ptr_bottom - *ptr_top;
+      dXX += dx*dx;
+      dYY += dy*dy;
+      dXY += dx*dy;
+    }
+  }
+
+  // Find and return smaller eigenvalue:
+  dXX = dXX / (2.0 * box_area);
+  dYY = dYY / (2.0 * box_area);
+  dXY = dXY / (2.0 * box_area);
+  return 0.5 * (dXX + dYY - sqrt( (dXX + dYY) * (dXX + dYY) - 4 * (dXX * dYY - dXY * dXY) ));
+}
+
 
 void
 calcSharrDeriv(const cv::Mat& src, cv::Mat& dst)

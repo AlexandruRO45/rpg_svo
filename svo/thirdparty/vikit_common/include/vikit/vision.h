@@ -8,24 +8,12 @@
 #ifndef VIKIT_VISION_H_
 #define VIKIT_VISION_H_
 
+#include <vikit/aligned_mem.h>
 #include <Eigen/Core>
-
-#include <opencv2/core/core.hpp>
+#include <opencv2/opencv.hpp>
 
 namespace vk
 {
-
-/// Check if memory is 8bit aligned.
-inline bool is_aligned8(const void* ptr)
-{
-  return ((reinterpret_cast<size_t>(ptr)) & 0x7) == 0;
-}
-
-/// Check if memory is 16bit aligned.
-inline bool is_aligned16(const void* ptr)
-{
-  return ((reinterpret_cast<size_t>(ptr)) & 0xF) == 0;
-}
 
 //! Return value between 0 and 1
 //! WARNING This function does not check whether the x/y is within the border
@@ -71,6 +59,8 @@ interpolateMat_8u(const cv::Mat& mat, float u, float v)
 }
 
 void halfSample(const cv::Mat& in, cv::Mat& out);
+
+float shiTomasiScore(const cv::Mat& img, int u, int v);
 
 void calcSharrDeriv(const cv::Mat& src, cv::Mat& dst);
 

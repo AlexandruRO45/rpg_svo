@@ -13,42 +13,73 @@
  *
  */
 
-#ifndef VIKIT_HOMOGRAPHY_H_
-#define VIKIT_HOMOGRAPHY_H_
+#ifndef HOMOGRAPHY_H_
+#define HOMOGRAPHY_H_
 
-#include <vector>
 #include <Eigen/Core>
+#include <Eigen/StdVector>
+#include <Eigen/SVD>
+#include <vikit/math_utils.h>
 
 namespace vk {
 
-using BearingVector = Eigen::Vector3d;
-using Bearings = Eigen::Matrix<double, 3, Eigen::Dynamic, Eigen::ColMajor>;
+using namespace Eigen;
+using namespace std;
 
-struct Homography
+struct HomographyDecomposition
 {
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  Vector3d t;
+  Matrix3d R;
+  double   d;
+  Vector3d n;
 
-  Eigen::Vector3d t_cur_ref;
-  Eigen::Matrix3d R_cur_ref;
-  Eigen::Vector3d n_cur;
-  double score;
-  Homography()
-    : t_cur_ref()
-    , R_cur_ref()
-    , n_cur()
-    , score(0.0)
-  {}
+  // Resolved  Composition
+  Sophus::SE3d T; //!< second from first
+  int score;
 };
 
-/// Estimates Homography from corresponding feature bearing vectors.
-/// Score of returned homography is set to the number of inliers.
-Homography estimateHomography(
-    const Bearings& f_cur,
-    const Bearings& f_ref,
-    const double focal_length,
-    const double reproj_error_thresh,
-    const size_t min_num_inliers);
+class Homography
+{
+public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-} // namespace vk
+  Homography            (const vector<Vector2d, aligned_allocator<Vector2d> >& _fts1,
+                         const vector<Vector2d, aligned_allocator<Vector2d> >& _fts2,
+                         double _error_multiplier2,
+                         double _thresh_in_px);
 
-#endif // VIKIT_HOMOGRAPHY_H_
+  void
+  calcFromPlaneParams   (const Vector3d & normal,
+                         const Vector3d & point_on_plane);
+
+  void
+  calcFromMatches       ();
+
+  size_t
+  computeMatchesInliers ();
+
+  bool
+  computeSE3fromMatches ();
+
+  bool
+  decompose             ();
+
+  void
+  findBestDecomposition ();
+
+  double thresh;
+  double error_multiplier2;
+  const vector<Vector2d, aligned_allocator<Vector2d> >& fts_c1; //!< Features on first image on unit plane
+  const vector<Vector2d, aligned_allocator<Vector2d> >& fts_c2; //!< Features on second image on unit plane
+  vector<bool> inliers;
+  Sophus::SE3d T_c2_from_c1;               //!< Relative translation and rotation of two images
+  Matrix3d H_c2_from_c1;                   //!< Homography
+  vector<HomographyDecomposition> decompositions;
+};
+
+
+
+
+} /* end namespace vk */
+
+#endif /* HOMOGRAPHY_H_ */

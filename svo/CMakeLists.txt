@@ -3,7 +3,7 @@
 
 set(TRACE TRUE)
 set(HAVE_G2O FALSE)
-set(USE_ROS TRUE)
+set(USE_ROS FALSE)
 set(DEBUG_OUTPUT TRUE) # Only relevant if build without ROS
 
 ################################################################################
@@ -14,8 +14,6 @@ project(${PROJECT_NAME})
 set(CMAKE_BUILD_TYPE RelWithDebInfo) # Release, RelWithDebInfo, Debug
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/CMakeModules/")
 
-# Required so that svo_ros vo can find libfast.so
-# TODO why?
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 # Set definitions
@@ -32,8 +30,7 @@ if(DEBUG_OUTPUT)
   add_definitions(-DSVO_DEBUG_OUTPUT)
 endif()
 
-# Set build flags, set ARM_ARCHITECTURE environment variable on Odroid
-# Set build flags. Set IS_ARM on odroid board as environment variable
+# Set build flags
 set(CMAKE_CXX_FLAGS "-Wall -D_LINUX -D_REENTRANT -march=native -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unknown-pragmas")
 if(DEFINED ENV{ARM_ARCHITECTURE})
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mfpu=neon -march=armv7-a")
@@ -42,12 +39,22 @@ else()
 endif()
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3 -fsee -fomit-frame-pointer -fno-signed-zeros -fno-math-errno -funroll-loops")
 
+# Find system-level packages
 find_package(Boost REQUIRED COMPONENTS thread system)
 find_package(Eigen3 REQUIRED)
-find_package(fast REQUIRED)
 find_package(OpenCV REQUIRED)
-find_package(Sophus REQUIRED)
-find_package(vikit_common REQUIRED)
+
+# ===================================================================================
+# Correctly disable building of tests and examples from third-party libs
+set(BUILD_TESTS OFF CACHE BOOL "Disable third-party tests")
+set(BUILD_EXAMPLES OFF CACHE BOOL "Disable third-party examples")
+# ===================================================================================
+
+# Add and compile third-party libraries from source in the correct order
+# Sophus is a dependency of vikit_common, so it must come first.
+add_subdirectory(thirdparty/fast_neon)
+add_subdirectory(thirdparty/Sophus)
+add_subdirectory(thirdparty/vikit_common)
 
 if(USE_ROS)
   find_package(ament_cmake REQUIRED)
@@ -57,20 +64,7 @@ else()
   set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 endif()
 
-include_directories(
-  include
-  ${fast_INCLUDE_DIRS})
-
-message(STATUS "fast libraries: ${fast_LIBRARIES}")
-
-# Set link libraries
-list(APPEND LINK_LIBS
-  ${Boost_LIBRARIES}
-  Eigen3::Eigen
-  ${fast_LIBRARIES}
-  ${OpenCV_LIBS}
-  Sophus::Sophus
-  vikit_common::vikit_common)  # TODO handle non-ROS case
+include_directories(include)
 
 # Set sourcefiles
 list(APPEND SOURCEFILES
@@ -106,37 +100,51 @@ add_library(svo STATIC
   ${SOURCEFILES})
 
 if(USE_ROS)
-  # Modern CMake target
   add_library(svo::svo ALIAS svo)
 endif()
 
-target_link_libraries(svo
-  ${LINK_LIBS}
-  rclcpp::rclcpp)
+# Link all dependencies directly to the svo library target
+target_link_libraries(svo PUBLIC
+    fast
+    vikit_common
+)
+
+# Conditionally link g2o if available
+if(HAVE_G2O)
+    target_link_libraries(svo PUBLIC
+        ${G2O_CORE_LIBRARY} ${G2O_STUFF_LIBRARY} ${G2O_SOLVER_CHOLMOD} ${G2O_SOLVER_CSPARSE} ${G2O_SOLVER_DENSE}
+        ${G2O_SOLVER_PCG} ${G2O_TYPES_SBA} cholmod cxsparse
+    )
+endif()
+
+# Conditionally link ROS if enabled
+if(USE_ROS)
+    target_link_libraries(svo PUBLIC rclcpp::rclcpp)
+endif()
 
 ################################################################################
 # TESTS
 
 add_executable(test_feature_align test/test_feature_alignment.cpp)
-target_link_libraries(test_feature_align svo)
+target_link_libraries(test_feature_align svo ${Boost_LIBRARIES})
 
 add_executable(test_pipeline test/test_pipeline.cpp)
-target_link_libraries(test_pipeline svo)
+target_link_libraries(test_pipeline svo ${Boost_LIBRARIES})
 
 add_executable(test_matcher test/test_matcher.cpp)
-target_link_libraries(test_matcher svo)
+target_link_libraries(test_matcher svo ${Boost_LIBRARIES})
 
 add_executable(test_feature_detection test/test_feature_detection.cpp)
-target_link_libraries(test_feature_detection svo)
+target_link_libraries(test_feature_detection svo ${Boost_LIBRARIES})
 
 add_executable(test_depth_filter test/test_depth_filter.cpp)
-target_link_libraries(test_depth_filter svo)
+target_link_libraries(test_depth_filter svo ${Boost_LIBRARIES})
 
 add_executable(test_sparse_img_align test/test_sparse_img_align.cpp)
-target_link_libraries(test_sparse_img_align svo)
+target_link_libraries(test_sparse_img_align svo ${Boost_LIBRARIES})
 
 add_executable(test_pose_optimizer test/test_pose_optimizer.cpp)
-target_link_libraries(test_pose_optimizer svo)
+target_link_libraries(test_pose_optimizer svo ${Boost_LIBRARIES})
 
 if(USE_ROS)
   install(TARGETS ${PROJECT_NAME} EXPORT svo_targets INCLUDES DESTINATION include)
