@@ -3,7 +3,7 @@
 
 set(TRACE TRUE)
 set(HAVE_G2O FALSE)
-set(USE_ROS TRUE)
+set(USE_ROS FALSE)
 set(DEBUG_OUTPUT TRUE) # Only relevant if build without ROS
 
 ################################################################################
@@ -44,10 +44,16 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3 -fsee -fomit-frame-pointer -
 
 find_package(Boost REQUIRED COMPONENTS thread system)
 find_package(Eigen3 REQUIRED)
-find_package(fast REQUIRED)
 find_package(OpenCV REQUIRED)
-find_package(Sophus REQUIRED)
-find_package(vikit_common REQUIRED)
+
+# set(SOPHUS_USE_BASIC_LOGGING OFF CACHE BOOL "Disable Sophus logging")
+# set(BUILD_TESTS OFF CACHE BOOL "Disable Sophus tests")
+
+# Add the subdirectories for our local dependencies
+# add_subdirectory(extra/vikit_common/Sophus)
+add_subdirectory(extra/fast_neon)
+add_subdirectory(extra/vikit_common)
+
 
 if(USE_ROS)
   find_package(ament_cmake REQUIRED)
@@ -59,18 +65,19 @@ endif()
 
 include_directories(
   include
-  ${fast_INCLUDE_DIRS})
-
-message(STATUS "fast libraries: ${fast_LIBRARIES}")
+  extra/fast_neon/include
+  extra/vikit_common/include 
+)
 
 # Set link libraries
 list(APPEND LINK_LIBS
   ${Boost_LIBRARIES}
-  Eigen3::Eigen
-  ${fast_LIBRARIES}
+  ${EIGEN3_LIBS}
+  # sophus # Link against the target from the subdirectory
+  fast # Link against the target from the subdirectory
   ${OpenCV_LIBS}
-  Sophus::Sophus
-  vikit_common::vikit_common)  # TODO handle non-ROS case
+  vikit_common # Link against the target from the subdirectory
+)
 
 # Set sourcefiles
 list(APPEND SOURCEFILES
@@ -112,7 +119,14 @@ endif()
 
 target_link_libraries(svo
   ${LINK_LIBS}
-  rclcpp::rclcpp)
+)
+
+if(USE_ROS)
+  target_link_libraries(svo
+    rclcpp::rclcpp
+  )
+endif()
+
 
 ################################################################################
 # TESTS
