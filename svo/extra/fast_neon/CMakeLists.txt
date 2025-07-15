@@ -11,7 +11,7 @@ ELSE()
 	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -mmmx -msse -msse -msse2 -msse3 -mssse3 -fomit-frame-pointer")
 ENDIF()
 
-find_package(ament_cmake REQUIRED)
+# find_package(ament_cmake REQUIRED)
 
 set(HEADERS
   include/fast/corner_9.h
@@ -50,7 +50,7 @@ install(DIRECTORY include/
   DESTINATION include/
 )
 
-ament_export_libraries(${PROJECT_NAME})
-ament_export_include_directories(include)
-ament_package()
+# ament_export_libraries(${PROJECT_NAME})
+# ament_export_include_directories(include)
+# ament_package()
 

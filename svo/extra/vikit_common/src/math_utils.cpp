@@ -11,36 +11,36 @@ namespace vk {
 
 using namespace Eigen;
 
-Vector3d
-triangulateFeatureNonLin(const Matrix3d& R,  const Vector3d& t,
-                         const Vector3d& feature1, const Vector3d& feature2 )
+Eigen::Vector3d
+triangulateFeatureNonLin(const Eigen::Matrix3d& R,  const Eigen::Vector3d& t,
+                         const Eigen::Vector3d& feature1, const Eigen::Vector3d& feature2 )
 {
-  Vector3d f2 = R * feature2;
-  Vector2d b;
+  Eigen::Vector3d f2 = R * feature2;
+  Eigen::Vector2d b;
   b[0] = t.dot(feature1);
   b[1] = t.dot(f2);
-  Matrix2d A;
+  Eigen::Matrix2d A;
   A(0,0) = feature1.dot(feature1);
   A(1,0) = feature1.dot(f2);
   A(0,1) = -A(1,0);
   A(1,1) = -f2.dot(f2);
-  Vector2d lambda = A.inverse() * b;
-  Vector3d xm = lambda[0] * feature1;
-  Vector3d xn = t + lambda[1] * f2;
+  Eigen::Vector2d lambda = A.inverse() * b;
+  Eigen::Vector3d xm = lambda[0] * feature1;
+  Eigen::Vector3d xn = t + lambda[1] * f2;
   return ( xm + xn )/2;
 }
 
 bool
 depthFromTriangulationExact(
-    const Matrix3d& R_r_c,
-    const Vector3d& t_r_c,
-    const Vector3d& f_r,
-    const Vector3d& f_c,
+    const Eigen::Matrix3d& R_r_c,
+    const Eigen::Vector3d& t_r_c,
+    const Eigen::Vector3d& f_r,
+    const Eigen::Vector3d& f_c,
     double& depth_in_r,
     double& depth_in_c)
 {
   // bearing vectors (f_r, f_c) do not need to be unit length
-  const Vector3d f_c_in_r(R_r_c*f_c);
+  const Eigen::Vector3d f_c_in_r(R_r_c*f_c);
   const double a = f_c_in_r.dot(f_r) / t_r_c.dot(f_r);
   const double b = f_c_in_r.dot(t_r_c);
   const double denom = (a*b - f_c_in_r.dot(f_c_in_r));
@@ -54,22 +54,22 @@ depthFromTriangulationExact(
 }
 
 double
-reprojError(const Vector3d& f1,
-            const Vector3d& f2,
+reprojError(const Eigen::Vector3d& f1,
+            const Eigen::Vector3d& f2,
             double error_multiplier2)
 {
-  Vector2d e = project2d(f1) - project2d(f2);
+  Eigen::Vector2d e = project2d(f1) - project2d(f2);
   return error_multiplier2 * e.norm();
 }
 
 double
-computeInliers(const vector<Vector3d, aligned_allocator<Vector3d> >& features1, // c1
-               const vector<Vector3d, aligned_allocator<Vector3d> >& features2, // c2
-               const Matrix3d& R,                 // R_c1_c2
-               const Vector3d& t,                 // c1_t
+computeInliers(const vector<Eigen::Vector3d>& features1, // c1
+               const vector<Eigen::Vector3d>& features2, // c2
+               const Eigen::Matrix3d& R,                 // R_c1_c2
+               const Eigen::Vector3d& t,                 // c1_t
                const double reproj_thresh,
                double error_multiplier2,
-               vector<Vector3d, aligned_allocator<Vector3d> >& xyz_vec,         // in frame c1
+               vector<Eigen::Vector3d>& xyz_vec,         // in frame c1
                vector<int>& inliers,
                vector<int>& outliers)
 {
@@ -95,10 +95,10 @@ computeInliers(const vector<Vector3d, aligned_allocator<Vector3d> >& features1, 
 }
 
 void
-computeInliersOneView(const vector<Vector3d, aligned_allocator<Vector3d> > & feature_sphere_vec,
-                      const vector<Vector3d, aligned_allocator<Vector3d> > & xyz_vec,
-                      const Matrix3d &R,
-                      const Vector3d &t,
+computeInliersOneView(const vector<Eigen::Vector3d> & feature_sphere_vec,
+                      const vector<Eigen::Vector3d> & xyz_vec,
+                      const Eigen::Matrix3d &R,
+                      const Eigen::Vector3d &t,
                       const double reproj_thresh,
                       const double error_multiplier2,
                       vector<int>& inliers,
@@ -118,10 +118,10 @@ computeInliersOneView(const vector<Vector3d, aligned_allocator<Vector3d> > & fea
   }
 }
 
-Vector3d
-dcm2rpy(const Matrix3d &R)
+Eigen::Vector3d
+dcm2rpy(const Eigen::Matrix3d &R)
 {
-  Vector3d rpy;
+  Eigen::Vector3d rpy;
   rpy[1] = atan2( -R(2,0), sqrt( pow( R(0,0), 2 ) + pow( R(1,0), 2 ) ) );
   if( fabs( rpy[1] - M_PI/2 ) < 0.00001 )
   {
@@ -144,20 +144,20 @@ dcm2rpy(const Matrix3d &R)
   return rpy;
 }
 
-Matrix3d
-rpy2dcm(const Vector3d &rpy)
+Eigen::Matrix3d
+rpy2dcm(const Eigen::Vector3d &rpy)
 {
-  Matrix3d R1;
+  Eigen::Matrix3d R1;
   R1(0,0) = 1.0; R1(0,1) = 0.0; R1(0,2) = 0.0;
   R1(1,0) = 0.0; R1(1,1) = cos(rpy[0]); R1(1,2) = -sin(rpy[0]);
   R1(2,0) = 0.0; R1(2,1) = -R1(1,2); R1(2,2) = R1(1,1);
 
-  Matrix3d R2;
+  Eigen::Matrix3d R2;
   R2(0,0) = cos(rpy[1]); R2(0,1) = 0.0; R2(0,2) = sin(rpy[1]);
   R2(1,0) = 0.0; R2(1,1) = 1.0; R2(1,2) = 0.0;
   R2(2,0) = -R2(0,2); R2(2,1) = 0.0; R2(2,2) = R2(0,0);
 
-  Matrix3d R3;
+  Eigen::Matrix3d R3;
   R3(0,0) = cos(rpy[2]); R3(0,1) = -sin(rpy[2]); R3(0,2) = 0.0;
   R3(1,0) = -R3(0,1); R3(1,1) = R3(0,0); R3(1,2) = 0.0;
   R3(2,0) = 0.0; R3(2,1) = 0.0; R3(2,2) = 1.0;
@@ -165,36 +165,36 @@ rpy2dcm(const Vector3d &rpy)
   return R3 * R2 * R1;
 }
 
-Quaterniond
-angax2quat(const Vector3d& n, const double& angle)
+Eigen::Quaterniond
+angax2quat(const Eigen::Vector3d& n, const double& angle)
 {
   // n must be normalized!
   double s(sin(angle/2));
-  return Quaterniond( cos(angle/2), n[0]*s, n[1]*s, n[2]*s );
+  return Eigen::Quaterniond( cos(angle/2), n[0]*s, n[1]*s, n[2]*s );
 }
 
 
-Matrix3d
-angax2dcm(const Vector3d& n, const double& angle)
+Eigen::Matrix3d
+angax2dcm(const Eigen::Vector3d& n, const double& angle)
 {
   // n must be normalized
-  Matrix3d sqewn(sqew(n));
-  return Matrix3d(Matrix3d::Identity() + sqewn*sin(angle) + sqewn*sqewn*(1-cos(angle)));
+  Eigen::Matrix3d sqewn(sqew(n));
+  return Eigen::Matrix3d(Eigen::Matrix3d::Identity() + sqewn*sin(angle) + sqewn*sqewn*(1-cos(angle)));
 }
 
 double
-sampsonusError(const Vector2d &v2Dash, const Matrix3d& Essential, const Vector2d& v2)
+sampsonusError(const Eigen::Vector2d &v2Dash, const Eigen::Matrix3d& Essential, const Eigen::Vector2d& v2)
 {
-  Vector3d v3Dash = unproject2d(v2Dash);
-  Vector3d v3 = unproject2d(v2);
+  Eigen::Vector3d v3Dash = unproject2d(v2Dash);
+  Eigen::Vector3d v3 = unproject2d(v2);
 
   double dError = v3Dash.transpose() * Essential * v3;
 
-  Vector3d fv3 = Essential * v3;
-  Vector3d fTv3Dash = Essential.transpose() * v3Dash;
+  Eigen::Vector3d fv3 = Essential * v3;
+  Eigen::Vector3d fTv3Dash = Essential.transpose() * v3Dash;
 
-  Vector2d fv3Slice = fv3.head<2>();
-  Vector2d fTv3DashSlice = fTv3Dash.head<2>();
+  Eigen::Vector2d fv3Slice = fv3.head<2>();
+  Eigen::Vector2d fTv3DashSlice = fTv3Dash.head<2>();
 
   return (dError * dError / (fv3Slice.dot(fv3Slice) + fTv3DashSlice.dot(fTv3DashSlice)));
 }

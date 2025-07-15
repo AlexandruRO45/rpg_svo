@@ -34,7 +34,7 @@ ForwardCompositionalSE3( vector<PinholeCamera>& cam_pyr,
                          vector<cv::Mat>& tpl_pyr,
                          vector<cv::Mat>& img_pyr_dx,
                          vector<cv::Mat>& img_pyr_dy,
-                         SE3d& init_model,
+                         Sophus::SE3<double>& init_model,
                          int n_levels,
                          int n_iter,
                          float res_thresh,
@@ -115,7 +115,7 @@ ForwardCompositionalSE3( vector<PinholeCamera>& cam_pyr,
 }
 
 void ForwardCompositionalSE3::
-runOptimization(SE3d& model, int levelBegin, int levelEnd)
+runOptimization(Sophus::SE3<double>& model, int levelBegin, int levelEnd)
 {
   if(levelBegin < 0 || levelBegin > n_levels_-1)
     levelBegin = n_levels_-1;
@@ -133,7 +133,7 @@ runOptimization(SE3d& model, int levelBegin, int levelEnd)
 }
 
 double ForwardCompositionalSE3::
-computeResiduals (const SE3d& model, bool linearize_system, bool compute_weight_scale)
+computeResiduals (const Sophus::SE3<double>& model, bool linearize_system, bool compute_weight_scale)
 {
   // Warp the image such that it aligns with the template image
   double chi2 = 0;
@@ -148,9 +148,9 @@ computeResiduals (const SE3d& model, bool linearize_system, bool compute_weight_
     {
       // compute pixel location in new img
       cv::Vec3f cv_float3 = depth_pyr_[level_].at<cv::Vec3f>(v,u);
-      Vector3d xyz_tpl(cv_float3[0], cv_float3[1], cv_float3[2]);
-      Vector3d xyz_img(model*xyz_tpl);
-      Vector2f uv_img_pyr = cam_pyr_[level_].world2cam(xyz_img).cast<float>(); // apply cam model
+      Eigen::Vector3d xyz_tpl(cv_float3[0], cv_float3[1], cv_float3[2]);
+      Eigen::Vector3d xyz_img(model*xyz_tpl);
+      Eigen::Vector2f uv_img_pyr = cam_pyr_[level_].world2cam(xyz_img).cast<float>(); // apply cam model
       if( cam_pyr_[level_].isInFrame(uv_img_pyr.cast<int>(), 2) )
       {
         // compare image values
@@ -179,7 +179,7 @@ computeResiduals (const SE3d& model, bool linearize_system, bool compute_weight_
           frameJac_xyz2uv(xyz_img, cam_pyr_[level_].fx(), frame_jac);
 
           // compute steppest descent images
-          Vector6d J = dx*frame_jac.row(0) + dy*frame_jac.row(1);
+          Sophus::Vector6d J = dx*frame_jac.row(0) + dy*frame_jac.row(1);
 
           // compute Hessian and
           H_ += J*J.transpose();
@@ -206,7 +206,7 @@ solve()
 void ForwardCompositionalSE3::
 update(const ModelType& old_model,  ModelType& new_model)
 {
-  new_model = SE3d::exp(x_)*(old_model);
+  new_model = Sophus::SE3<double>::exp(x_)*(old_model);
 }
 
 void ForwardCompositionalSE3::
@@ -252,7 +252,7 @@ SecondOrderMinimisationSE3( vector<PinholeCamera>& cam_pyr,
                             vector<cv::Mat>& img_pyr_dy,
                             vector<cv::Mat>& tpl_pyr_dx,
                             vector<cv::Mat>& tpl_pyr_dy,
-                            SE3d& init_model,
+                            Sophus::SE3<double>& init_model,
                             int n_levels,
                             int n_iter,
                             float res_thresh,
@@ -306,7 +306,7 @@ SecondOrderMinimisationSE3( vector<PinholeCamera>& cam_pyr,
 }
 
 double SecondOrderMinimisationSE3::
-computeResiduals (const SE3d& model, bool linearize_system, bool compute_weight_scale)
+computeResiduals (const Sophus::SE3<double>& model, bool linearize_system, bool compute_weight_scale)
 {
   // Warp the image such that it aligns with the template image
   double chi2 = 0;
@@ -324,9 +324,9 @@ computeResiduals (const SE3d& model, bool linearize_system, bool compute_weight_
     {
       // compute pixel location in new img
       cv::Vec3f cv_float3 = depth_pyr_[level_].at<cv::Vec3f>(v,u);
-      Vector3d xyz_tpl(cv_float3[0], cv_float3[1], cv_float3[2]);
-      Vector3d xyz_img(model*xyz_tpl);
-      Vector2f uv_img_pyr = cam_pyr_[level_].world2cam(xyz_img).cast<float>(); // apply cam model
+      Eigen::Vector3d xyz_tpl(cv_float3[0], cv_float3[1], cv_float3[2]);
+      Eigen::Vector3d xyz_img(model*xyz_tpl);
+      Eigen::Vector2f uv_img_pyr = cam_pyr_[level_].world2cam(xyz_img).cast<float>(); // apply cam model
       if( cam_pyr_[level_].isInFrame(uv_img_pyr.cast<int>(), 1) )
       {
         img_warped.at<float>(v,u) = interpolateMat_32f(img_pyr_[level_], uv_img_pyr[0], uv_img_pyr[1]);
@@ -374,13 +374,13 @@ computeResiduals (const SE3d& model, bool linearize_system, bool compute_weight_
 
           // evaluate jacobian
           cv::Vec3f cv_float3 = depth_pyr_[level_].at<cv::Vec3f>(v,u);
-          Vector3d xyz_tpl(cv_float3[0], cv_float3[1], cv_float3[2]);
-          Vector3d xyz_img(model*xyz_tpl);
+          Eigen::Vector3d xyz_tpl(cv_float3[0], cv_float3[1], cv_float3[2]);
+          Eigen::Vector3d xyz_img(model*xyz_tpl);
           Eigen::Matrix<double,2,6> frame_jac;
           frameJac_xyz2uv(xyz_tpl, cam_pyr_[level_].fx(), frame_jac);
 
           // compute steppest descent images
-          Vector6d J = dx*frame_jac.row(0) + dy*frame_jac.row(1);
+          Sophus::Vector6d J = dx*frame_jac.row(0) + dy*frame_jac.row(1);
 
           // compute Hessian
           H_ += J*J.transpose();
@@ -406,7 +406,7 @@ solve()
 void SecondOrderMinimisationSE3::
 update(const ModelType& old_model,  ModelType& new_model)
 {
-  new_model = SE3d::exp(x_)*old_model;
+  new_model = Sophus::SE3<double>::exp(x_) * old_model;
 }
 
 void SecondOrderMinimisationSE3::
