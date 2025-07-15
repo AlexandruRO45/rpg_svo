@@ -28,6 +28,7 @@ using namespace std;
 
 struct HomographyDecomposition
 {
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   Eigen::Vector3d t;
   Eigen::Matrix3d R;
   double   d;
@@ -43,8 +44,8 @@ class Homography
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  Homography            (const vector<Eigen::Vector2d, aligned_allocator<Eigen::Vector2d> >& _fts1,
-                         const vector<Eigen::Vector2d, aligned_allocator<Eigen::Vector2d> >& _fts2,
+  Homography            (const vector<Eigen::Vector2d>& _fts1,
+                         const vector<Eigen::Vector2d>& _fts2,
                          double _error_multiplier2,
                          double _thresh_in_px);
 
@@ -69,12 +70,12 @@ public:
 
   double thresh;
   double error_multiplier2;
-  const vector<Eigen::Vector2d, aligned_allocator<Eigen::Vector2d> >& fts_c1; //!< Features on first image on unit plane
-  const vector<Eigen::Vector2d, aligned_allocator<Eigen::Vector2d> >& fts_c2; //!< Features on second image on unit plane
+  const vector<Eigen::Vector2d>& fts_c1; //!< Features on first image on unit plane
+  const vector<Eigen::Vector2d>& fts_c2; //!< Features on second image on unit plane
   vector<bool> inliers;
   Sophus::SE3<double> T_c2_from_c1;             //!< Relative translation and rotation of two images
   Eigen::Matrix3d H_c2_from_c1;                   //!< Homography
-  vector<HomographyDecomposition> decompositions;
+  vector<HomographyDecomposition, Eigen::aligned_allocator<HomographyDecomposition>> decompositions;
 };
 
 
