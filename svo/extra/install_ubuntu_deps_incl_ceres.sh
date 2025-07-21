@@ -18,13 +18,13 @@ cmake .. -DEIGEN_DEFAULT_TO_ROW_MAJOR=$ROW_MAJOR_DEFAULT
 sudo make install
 cd ../..
 
-git clone https://ceres-solver.googlesource.com/ceres-solver ceres-solver
-cd ceres-solver
-git reset --hard 6a74af202d83cf31811ea17dc66c74d03b89d79e
-mkdir build
-cd build
-ccache -s
-cmake -DMINIGLOG=On -DCMAKE_CXX_COMPILER_LAUNCHER=ccache ..
-make -j8
-sudo make install
-cd ../..
+# git clone https://ceres-solver.googlesource.com/ceres-solver ceres-solver
+# cd ceres-solver
+# git reset --hard 6a74af202d83cf31811ea17dc66c74d03b89d79e
+# mkdir build
+# cd build
+# ccache -s
+# cmake -DMINIGLOG=On -DCMAKE_CXX_COMPILER_LAUNCHER=ccache ..
+# make -j8
+# sudo make install
+# cd ../..
