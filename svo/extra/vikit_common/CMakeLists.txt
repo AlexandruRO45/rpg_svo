@@ -1,6 +1,7 @@
 SET(PROJECT_NAME vikit_common)
 PROJECT(${PROJECT_NAME})
 CMAKE_MINIMUM_REQUIRED (VERSION 2.8.3)
+cmake_policy(SET CMP0026 OLD)
 SET(CMAKE_BUILD_TYPE Release) # Release, RelWithDebInfo
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -24,20 +25,22 @@ SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3 -fsee -fomit-frame-pointer -
 
 # Add plain cmake packages 
 FIND_PACKAGE(OpenCV REQUIRED)
-FIND_PACKAGE(Eigen REQUIRED)
+# FIND_PACKAGE(Eigen REQUIRED)
 # FIND_PACKAGE(Sophus REQUIRED)
 
 set(SOPHUS_USE_BASIC_LOGGING OFF CACHE BOOL "Disable Sophus logging")
 set(BUILD_TESTS OFF CACHE BOOL "Disable Sophus tests")
 add_subdirectory(Sophus)
+add_subdirectory(eigen)
 
 # Include dirs
 INCLUDE_DIRECTORIES(
   include
-  ${Eigen_INCLUDE_DIRS}
+  # ${Eigen_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
   # ${Sophus_INCLUDE_DIRS}
   ${PROJECT_SOURCE_DIR}/Sophus/sophus
+  ${PROJECT_SOURCE_DIR}/eigen/Eigen
 )
 
 IF(USE_ROS)

@@ -43,7 +43,7 @@ endif()
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3 -fsee -fomit-frame-pointer -fno-signed-zeros -fno-math-errno -funroll-loops")
 
 find_package(Boost REQUIRED COMPONENTS thread system)
-find_package(Eigen3 REQUIRED)
+# find_package(Eigen3 REQUIRED)
 find_package(OpenCV REQUIRED)
 
 # set(SOPHUS_USE_BASIC_LOGGING OFF CACHE BOOL "Disable Sophus logging")
@@ -53,6 +53,7 @@ find_package(OpenCV REQUIRED)
 # add_subdirectory(extra/vikit_common/Sophus)
 add_subdirectory(extra/fast_neon)
 add_subdirectory(extra/vikit_common)
+# add_subdirectory(extra/vikit_common/eigen)
 
 
 if(USE_ROS)
@@ -72,8 +73,9 @@ include_directories(
 # Set link libraries
 list(APPEND LINK_LIBS
   ${Boost_LIBRARIES}
-  ${EIGEN3_LIBS}
+  # ${EIGEN3_LIBS}
   # sophus # Link against the target from the subdirectory
+  # eigen/Eigen
   fast # Link against the target from the subdirectory
   ${OpenCV_LIBS}
   vikit_common # Link against the target from the subdirectory
