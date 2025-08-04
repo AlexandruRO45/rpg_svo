@@ -111,7 +111,7 @@ if(HAVE_G2O)
 endif(HAVE_G2O)
 
 # Create svo library
-add_library(svo STATIC
+add_library(svo SHARED
   ${SOURCEFILES})
 
 if(USE_ROS)

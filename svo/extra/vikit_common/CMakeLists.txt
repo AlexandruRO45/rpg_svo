@@ -1,7 +1,6 @@
 SET(PROJECT_NAME vikit_common)
 PROJECT(${PROJECT_NAME})
-CMAKE_MINIMUM_REQUIRED (VERSION 2.8.3)
-cmake_policy(SET CMP0026 OLD)
+CMAKE_MINIMUM_REQUIRED (VERSION 3.8.3)
 SET(CMAKE_BUILD_TYPE Release) # Release, RelWithDebInfo
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -81,21 +80,11 @@ IF(USE_ROS)
   TARGET_LINK_LIBRARIES(${PROJECT_NAME} ${catkin_LIBRARIES})
 ENDIF()
 
-# Tests
-ADD_EXECUTABLE(test_vk_common_camera test/test_camera.cpp)
-TARGET_LINK_LIBRARIES(test_vk_common_camera ${PROJECT_NAME})
-
-ADD_EXECUTABLE(test_vk_common_triangulation test/test_triangulation.cpp)
-TARGET_LINK_LIBRARIES(test_vk_common_triangulation ${PROJECT_NAME})
-
-ADD_EXECUTABLE(test_vk_common_patch_score test/test_patch_score.cpp)
-TARGET_LINK_LIBRARIES(test_vk_common_patch_score ${PROJECT_NAME})
-
 
 ################################################################################
 # Create the vikit_commonConfig.cmake file for other cmake projects.
 IF(NOT USE_ROS)
-  GET_TARGET_PROPERTY( FULL_LIBRARY_NAME ${PROJECT_NAME} LOCATION )
+  SET(VIKIT_COMMON_LIB_PATH $<TARGET_FILE:vikit_common>)
   SET(vikit_common_LIBRARIES ${FULL_LIBRARY_NAME} )
   SET(vikit_common_LIBRARY_DIR ${PROJECT_BINARY_DIR} )
   SET(vikit_common_INCLUDE_DIR "${PROJECT_SOURCE_DIR}/include")
