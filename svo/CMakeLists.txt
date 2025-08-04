@@ -11,7 +11,7 @@ set(DEBUG_OUTPUT TRUE) # Only relevant if build without ROS
 set(PROJECT_NAME svo)
 cmake_minimum_required(VERSION 3.14)
 project(${PROJECT_NAME})
-set(CMAKE_BUILD_TYPE RelWithDebInfo) # Release, RelWithDebInfo, Debug
+set(CMAKE_BUILD_TYPE Release) # Release, RelWithDebInfo, Debug
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/CMakeModules/")
 
 # Required so that svo_ros vo can find libfast.so
