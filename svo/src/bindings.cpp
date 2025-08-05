@@ -4,6 +4,7 @@
 #include <pybind11/numpy.h>
 
 #include <opencv2/core/core.hpp>
+#include <boost/shared_ptr.hpp> 
 
 // SVO Headers
 #include <svo/config.h>
@@ -15,8 +16,10 @@
 
 namespace py = pybind11;
 
-// This is a custom type caster to handle the conversion between
-// cv::Mat and numpy arrays. This is essential for passing images.
+PYBIND11_DECLARE_HOLDER_TYPE(T, boost::shared_ptr<T>);
+
+// Custom type caster to handle the conversion between
+// cv::Mat and numpy arrays.
 namespace pybind11 { namespace detail {
 template <> struct type_caster<cv::Mat> {
     public:
@@ -26,19 +29,25 @@ template <> struct type_caster<cv::Mat> {
             if (!py::isinstance<py::array>(src))
                 return false;
 
-            auto buf = py::array_t<uint8_t>::ensure(src);
+            auto buf = py::array_t<uint8_t, py::array::c_style | py::array::forcecast>::ensure(src);
             if (!buf)
                 return false;
             
-            // This logic assumes a 2D grayscale image (HxW)
-            // It can be extended for color images (HxWxC) if needed.
-            cv::Mat mat(buf.ndim() > 1 ? buf.shape(0) : 1, buf.ndim() > 0 ? buf.shape(1) : 0, CV_8U, (void*)buf.data());
-            value = mat;
+            // Create a temporary Mat header that points to the numpy array's data
+            cv::Mat temp_mat(buf.shape(0), buf.shape(1), CV_8U, (void*)buf.data());
+            value = temp_mat.clone();
             return true;
         }
 
         static handle cast(const cv::Mat &m, return_value_policy, handle defval) {
-             return py::array_t<uint8_t>({m.rows, m.cols}, {m.cols, 1}, m.data).release();
+             return py::array(py::buffer_info(
+                m.data,
+                sizeof(unsigned char),
+                py::format_descriptor<unsigned char>::format(),
+                2,
+                { (size_t) m.rows, (size_t) m.cols },
+                { (size_t) m.step[0], (size_t) m.step[1] }
+             )).release();
         }
 };
 }} // namespace pybind11::detail
@@ -63,8 +72,6 @@ PYBIND11_MODULE(svo_cpp, m) {
             return "<svo_cpp.SE3d t: " + ss.str() + ">";
         });
     
-    // We need to bind a concrete camera model to pass to the FrameHandler
-    // vikit::PinholeCamera is a good choice.
     py::class_<vk::AbstractCamera>(m, "AbstractCamera");
     py::class_<vk::PinholeCamera, vk::AbstractCamera>(m, "PinholeCamera")
         .def(py::init<double, double, double, double, double, double>(),
@@ -95,7 +102,7 @@ PYBIND11_MODULE(svo_cpp, m) {
     // 3. Bind Core SVO Classes (Frame, FrameHandler)
     // =================================================================================
 
-    py::class_<svo::Frame, std::shared_ptr<svo::Frame>>(m, "Frame")
+    py::class_<svo::Frame, boost::shared_ptr<svo::Frame>>(m, "Frame")
         .def_readonly("id_", &svo::Frame::id_)
         .def_readonly("timestamp_", &svo::Frame::timestamp_)
         .def_property_readonly("T_f_w", [](const svo::Frame& f) { return f.T_f_w_; });
