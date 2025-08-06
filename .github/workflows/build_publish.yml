@@ -185,8 +185,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.8", "3.10", "3.12"]
-        ubuntu-version: ["20.04", "22.04", "24.04"]
+        include:
+          - ubuntu-version: "20.04"
+            python-version: "3.8"
+            python-default: true
+          - ubuntu-version: "22.04" 
+            python-version: "3.10"
+            python-default: true
+          - ubuntu-version: "24.04"
+            python-version: "3.12"
+            python-default: true
 
     container:
       image: ubuntu:${{ matrix.ubuntu-version }}
@@ -196,8 +204,14 @@ jobs:
         run: |
           apt-get update
           apt-get install -y software-properties-common
-          add-apt-repository -y ppa:deadsnakes/ppa
-          apt-get update
+          
+          # For Ubuntu 20.04, we might need to add deadsnakes for newer Python versions
+          if [[ "${{ matrix.ubuntu-version }}" == "20.04" ]]; then
+            add-apt-repository -y ppa:deadsnakes/ppa
+            apt-get update
+          fi
+          
+          # Install the default Python version and dev tools
           apt-get install -y \
             python${{ matrix.python-version }} \
             python${{ matrix.python-version }}-dev \
