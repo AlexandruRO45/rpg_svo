@@ -155,8 +155,9 @@ jobs:
 
     steps:
       - name: "Setup Container Environment"
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: |
-          export DEBIAN_FRONTEND=noninteractive
           apt-get update
           apt-get install -y software-properties-common
           add-apt-repository -y ppa:deadsnakes/ppa
@@ -185,23 +186,15 @@ jobs:
             libeigen3-dev \
             libopencv-dev \
             libboost-all-dev \
-            pkg-config
+            pkg-config \
+            pybind11-dev # FIXED: Install pybind11's development files via apt
 
       - name: "Build and Test Package in Virtual Environment"
         run: |
-          # Create a virtual environment
           python${{ matrix.python-version }} -m venv .venv
-          
-          # Use the venv's pip to install build tools
           .venv/bin/python -m pip install --upgrade pip setuptools wheel build
-          
-          # Build the wheel using the venv's python
           .venv/bin/python -m build --wheel --outdir dist/
-          
-          # Install the newly built wheel into the venv
           .venv/bin/python -m pip install dist/*.whl
-          
-          # Run the import test using the venv's python
           .venv/bin/python -c "import svo_cpp; print(f'Successfully imported svo_cpp version {svo_cpp.__version__}')"
 
       - name: "Upload Ubuntu Dev Artifacts"
