@@ -1,321 +1,202 @@
-# .github/workflows/build_publish.yml
 name: Build and Publish
 
 on:
   push:
-    tags:
-      - "v*.*.*"
-    branches:
-      - main
-      - develop
+    branches: [main, develop]
+    tags: ['v*.*.*']
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-    branches: 
-      - main
-      - develop
+    branches: [main, develop]
   workflow_dispatch:
     inputs:
       publish_to_pypi:
-        description: 'Force publish to PyPI (use with caution)'
+        description: 'Publish to PyPI'
         required: false
         default: false
         type: boolean
-      build_target:
-        description: 'Build target'
-        required: false
-        default: 'all'
-        type: choice
-        options:
-          - 'all'
-          - 'wheels-only'
-          - 'ubuntu-only'
+
+env:
+  # Common build configuration
+  CMAKE_BUILD_TYPE: Release
+  CIBW_BUILD: "cp38-* cp39-* cp310-* cp311-* cp312-*"
+  CIBW_SKIP: "*-musllinux_* pp* cp38-win_arm64 cp39-win_arm64"
+  CIBW_TEST_COMMAND: "python -c 'import svo_cpp; print(f\"svo_cpp {svo_cpp.__version__} imported successfully\")'"
+  CIBW_TEST_SKIP: "*-*linux_aarch64 *-win_arm64"
 
 jobs:
-  # JOB 0: Quick validation and debugging
-  validate_trigger:
-    name: "Validate Workflow Trigger"
-    runs-on: ubuntu-latest
-    steps:
-      - name: "Debug Workflow Trigger"
-        run: |
-          echo "🚀 Workflow triggered successfully!"
-          echo "Event: ${{ github.event_name }}"
-          echo "Ref: ${{ github.ref }}"
-          echo "Actor: ${{ github.actor }}"
-          echo "Repository: ${{ github.repository }}"
-          echo "PR Number: ${{ github.event.number }}"
-          echo "Base Branch: ${{ github.event.pull_request.base.ref }}"
-          echo "Head Branch: ${{ github.event.pull_request.head.ref }}"
-          
-      - name: "Checkout Repository"
-        uses: actions/checkout@v4.2.2
-        
-      - name: "List Workflow Files"
-        run: |
-          echo "📁 Checking workflow files:"
-          ls -la .github/workflows/
-          echo "✅ build_publish.yml exists"
-
-  # JOB 1: Build portable wheels for multiple platforms
-  build_wheels:
-    name: "Build Wheels (${{ matrix.os }})"
-    needs: validate_trigger
-    if: github.event.inputs.build_target != 'ubuntu-only'
+  # Single job to build wheels for all platforms
+  build-wheels:
+    name: Build wheels on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-13, macos-14] # macos-13 (Intel), macos-14 (Apple Silicon)
-    
+        os: [ubuntu-20.04, windows-2019, macos-12, macos-14]
+
     steps:
-      - name: "Checkout Repository"
-        uses: actions/checkout@v4.2.2
-        with:
-          submodules: "recursive"
-          fetch-depth: 0 # Full history for proper versioning
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0
 
-      - name: "Set up QEMU (Linux only)"
-        if: runner.os == 'Linux'
-        uses: docker/setup-qemu-action@v3.6.0
-        with:
-          platforms: all
+    - name: Set up QEMU (Linux ARM64)
+      if: runner.os == 'Linux'
+      uses: docker/setup-qemu-action@v3
+      with:
+        platforms: arm64
 
-      - name: "Configure Build Environment"
-        shell: bash
-        run: |
-          if [[ "${{ runner.os }}" == "Linux" ]]; then
+    - name: Configure build for each OS
+      shell: bash
+      run: |
+        case "${{ runner.os }}" in
+          Linux)
             echo "CIBW_ARCHS_LINUX=x86_64 aarch64" >> $GITHUB_ENV
-          elif [[ "${{ runner.os }}" == "Windows" ]]; then
-            echo "CIBW_ARCHS_WINDOWS=AMD64 ARM64" >> $GITHUB_ENV
-          elif [[ "${{ runner.os }}" == "macOS" ]]; then
-            if [[ "${{ matrix.os }}" == "macos-13" ]]; then
+            ;;
+          Windows)
+            echo "CIBW_ARCHS_WINDOWS=AMD64" >> $GITHUB_ENV
+            ;;
+          macOS)
+            if [[ "${{ matrix.os }}" == "macos-12" ]]; then
               echo "CIBW_ARCHS_MACOS=x86_64" >> $GITHUB_ENV
             else
               echo "CIBW_ARCHS_MACOS=arm64" >> $GITHUB_ENV
             fi
-          fi
+            ;;
+        esac
 
-      - name: "Build Wheels"
-        uses: pypa/cibuildwheel@v3.1.3
-        env:
-          CIBW_BUILD: "cp38-* cp310-* cp312-*"
-          CIBW_SKIP: "*-musllinux_* pp* cp38-win_arm64 cp39-win_arm64"
-          CIBW_TEST_COMMAND: "python -c 'import svo_cpp; print(svo_cpp.__version__)'"
-          CIBW_TEST_SKIP: "*-*linux_aarch64 *-win_arm64"
-          CIBW_BEFORE_ALL_LINUX: |
-            set -e -x
-            # sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-Base.repo
-            # sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-Base.repo
-            yum install -y eigen3-devel opencv-devel boost-devel boost-serialization git cmake wget python3-devel python3-pip
-            pip install pybind11==2.13.1
-          CIBW_BEFORE_ALL_WINDOWS: |
-            C:\vcpkg\vcpkg.exe install eigen3:x64-windows opencv4:x64-windows boost-serialization:x64-windows pybind11:x64-windows --triplet x64-windows
-          CIBW_BEFORE_ALL_MACOS: |
-            brew install eigen opencv boost pybind11 cmake
+    - name: Install system dependencies
+      shell: bash
+      run: |
+        case "${{ runner.os }}" in
+          Linux)
+            # Dependencies will be installed in cibuildwheel
+            echo "Linux dependencies handled by cibuildwheel"
+            ;;
+          Windows)
+            # Install vcpkg dependencies
+            vcpkg install eigen3:x64-windows opencv4:x64-windows boost-serialization:x64-windows pybind11:x64-windows
+            ;;
+          macOS)
+            brew install eigen opencv boost pybind11
+            ;;
+        esac
 
-          CIBW_ENVIRONMENT_LINUX: 'CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DPYBIND11_FINDPYTHON=ON"'
-          CIBW_ENVIRONMENT_WINDOWS: 'CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DPYBIND11_FINDPYTHON=ON -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake"'
-          CIBW_ENVIRONMENT_MACOS: 'CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DPYBIND11_FINDPYTHON=ON -DCMAKE_OSX_ARCHITECTURES=${CIBW_ARCHS_MACOS} -DCMAKE_CXX_STANDARD=11"'
+    - name: Build wheels
+      uses: pypa/cibuildwheel@v2.16
+      env:
+        # Linux-specific configuration
+        CIBW_BEFORE_ALL_LINUX: |
+          yum update -y && yum install -y epel-release
+          yum install -y eigen3-devel opencv-devel boost-devel boost-serialization cmake3 git gcc-c++
+          pip install pybind11-global
+        CIBW_ENVIRONMENT_LINUX: >
+          CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DPYBIND11_FINDPYTHON=ON"
+        
+        # Windows-specific configuration  
+        CIBW_ENVIRONMENT_WINDOWS: >
+          CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DPYBIND11_FINDPYTHON=ON -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake"
+        
+        # macOS-specific configuration
+        CIBW_ENVIRONMENT_MACOS: >
+          CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DPYBIND11_FINDPYTHON=ON -DCMAKE_OSX_ARCHITECTURES=${{ env.CIBW_ARCHS_MACOS }}"
 
-      - name: "Upload Wheel Artifacts"
-        uses: actions/upload-artifact@v4.6.2
-        with:
-          name: wheels-${{ matrix.os }}
-          path: ./wheelhouse/*.whl
-          retention-days: 30
+    - name: Upload wheels
+      uses: actions/upload-artifact@v4
+      with:
+        name: wheels-${{ matrix.os }}
+        path: ./wheelhouse/*.whl
+        retention-days: 30
 
-  # JOB 2: Build development/testing wheels for Ubuntu
-  build_ubuntu_dev:
-    name: "Build Ubuntu Dev Wheels"
-    needs: validate_trigger
-    if: github.event.inputs.build_target != 'wheels-only'
+  # Build source distribution
+  build-sdist:
+    name: Build source distribution
     runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0
+
+    - name: Build SDist
+      run: pipx run build --sdist
+
+    - name: Upload SDist
+      uses: actions/upload-artifact@v4
+      with:
+        name: source-dist
+        path: dist/*.tar.gz
+
+  # Test wheels on different systems (optional, can be disabled for speed)
+  test-wheels:
+    name: Test wheels on ${{ matrix.os }}
+    needs: build-wheels
+    if: github.event_name == 'pull_request'
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - ubuntu-version: "20.04"
-            python-version: "3.8"
-          - ubuntu-version: "22.04"
-            python-version: "3.10"
-          - ubuntu-version: "24.04"
-            python-version: "3.12"
-
-    container:
-      image: ubuntu:${{ matrix.ubuntu-version }}
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.8', '3.12']
 
     steps:
-      - name: "Setup Container Environment"
-        env:
-          DEBIAN_FRONTEND: noninteractive
-        run: |
-          apt-get update
-          apt-get install -y software-properties-common
-          add-apt-repository -y ppa:deadsnakes/ppa
-          apt-get update
-          apt-get install -y \
-            python${{ matrix.python-version }} \
-            python${{ matrix.python-version }}-dev \
-            python${{ matrix.python-version }}-venv \
-            python3-pip \
-            git \
-            build-essential \
-            cmake \
-            wget
-          if dpkg --compare-versions "${{ matrix.python-version }}" "lt" "3.12"; then
-            apt-get install -y python${{ matrix.python-version }}-distutils
-          fi
+    - uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
 
-      - name: "Checkout Repository"
-        uses: actions/checkout@v4.2.2
-        with:
-          submodules: "recursive"
+    - name: Download wheels
+      uses: actions/download-artifact@v4
+      with:
+        pattern: wheels-*
+        path: wheels/
+        merge-multiple: true
 
-      - name: "Install System Dependencies"
-        run: |
-          apt-get install -y \
-            libeigen3-dev \
-            libopencv-dev \
-            libboost-all-dev \
-            pkg-config
-          git clone --depth 1 --branch v2.13.1 https://github.com/pybind/pybind11.git
-          cd pybind11 && mkdir build && cd build
-          cmake .. -DPYBIND11_TEST=OFF
-          make -j$(nproc) && make install
+    - name: Test wheel installation
+      shell: bash
+      run: |
+        # Find appropriate wheel for current platform
+        python -m pip install --find-links wheels/ svo-cpp --force-reinstall --no-deps
+        python -c "import svo_cpp; print(f'Successfully imported svo_cpp version {svo_cpp.__version__}')"
 
-      - name: "Build and Test Package in Virtual Environment"
-        run: |
-          python${{ matrix.python-version }} -m venv .venv
-          .venv/bin/python -m pip install --upgrade pip setuptools wheel build
-          .venv/bin/python -m build --wheel --outdir dist/
-          .venv/bin/python -m pip install dist/*.whl
-          .venv/bin/python -c "import svo_cpp; print(f'Successfully imported svo_cpp version {svo_cpp.__version__}')"
-
-      - name: "Upload Ubuntu Dev Artifacts"
-        uses: actions/upload-artifact@v4.6.2
-        with:
-          name: ubuntu-dev-${{ matrix.ubuntu-version }}-python-${{ matrix.python-version }}
-          path: dist/*.whl
-          retention-days: 7
-
-  # JOB 3: Collect all artifacts
-  collect_artifacts:
-    name: "Collect Release Artifacts"
-    needs: [build_wheels, build_ubuntu_dev]
-    if: always() && (needs.build_wheels.result == 'success' || needs.build_ubuntu_dev.result == 'success')
+  # Collect all artifacts and publish
+  publish:
+    name: Publish to PyPI
+    needs: [build-wheels, build-sdist]
     runs-on: ubuntu-latest
-    
-    steps:
-      - name: "Download All Wheel Artifacts"
-        uses: actions/download-artifact@v5
-        with:
-          pattern: wheels-*
-          path: collected-wheels/
-          merge-multiple: true
-
-      - name: "Prepare PyPI Distribution"
-        run: |
-          mkdir -p dist/
-          cp collected-wheels/*.whl dist/ || true
-          ls -la dist/
-
-      - name: "Upload Combined Artifacts"
-        uses: actions/upload-artifact@v4.6.2
-        with:
-          name: release-wheels
-          path: dist/*.whl
-          retention-days: 90
-
-  # JOB 4: Publish to PyPI
-  publish_to_pypi:
-    name: "Publish to PyPI"
-    needs: [collect_artifacts]
     if: >
       (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_to_pypi == 'true')
-    runs-on: ubuntu-latest
+      (github.event_name == 'workflow_dispatch' && inputs.publish_to_pypi)
     environment:
       name: pypi
       url: https://pypi.org/p/svo-cpp
     permissions:
       id-token: write
-      contents: read
-
-    steps:
-      - name: "Download Release Wheels"
-        uses: actions/download-artifact@v5
-        with:
-          name: release-wheels
-          path: dist/
-
-      - name: "Verify Distribution Files"
-        run: |
-          ls -la dist/
-          python -m pip install twine
-          python -m twine check dist/*
-
-      - name: "Publish to PyPI"
-        uses: pypa/gh-action-pypi-publish@release/v1.12
-        with:
-          print-hash: true
-          verbose: true
-
-  # JOB 5: Create GitHub Release
-  create_release:
-    name: "Create GitHub Release"
-    needs: [publish_to_pypi]
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    permissions:
       contents: write
-      
+
     steps:
-      - name: "Checkout Repository"
-        uses: actions/checkout@v4.2.2
-        with:
-          fetch-depth: 0
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: dist/
+        merge-multiple: true
 
-      - name: "Download Release Wheels"
-        uses: actions/download-artifact@v5
-        with:
-          name: release-wheels
-          path: release-assets/
+    - name: Publish to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        print-hash: true
 
-      - name: "Generate Release Notes"
-        id: release_notes
-        run: |
-          # Extract version from tag
-          VERSION=${GITHUB_REF#refs/tags/v}
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          
-          # Generate basic release notes (you can customize this)
-          cat > release_notes.md << EOF
-          # Release $VERSION
-          
-          ## What's New
-          
-          This release includes wheels for:
-          - Linux (x86_64, aarch64)
-          - Windows (AMD64, ARM64)
-          - macOS (Intel and Apple Silicon)
-          
-          ## Python Support
-          - Python 3.8 - 3.13
-          
+    - name: Create GitHub Release
+      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: dist/*
+        generate_release_notes: true
+        body: |
           ## Installation
-          \`\`\`bash
-          pip install svo-cpp==$VERSION
-          \`\`\`
+          ```bash
+          pip install svo-cpp==${{ github.ref_name }}
+          ```
           
-          ## Files in this release
-          $(ls -1 release-assets/*.whl | sed 's/^/- /')
-          EOF
-
-      - name: "Create Release"
-        uses: softprops/action-gh-release@v2.3.2
-        with:
-          body_path: release_notes.md
-          files: release-assets/*.whl
-          draft: false
-          prerelease: ${{ contains(github.ref, '-') }}
-          generate_release_notes: true
+          ## Supported Platforms
+          - Linux (x86_64, aarch64) 
+          - Windows (x64)
+          - macOS (Intel & Apple Silicon)
+          - Python 3.8 - 3.12
