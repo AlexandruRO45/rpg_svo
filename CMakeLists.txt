@@ -58,7 +58,6 @@ if(DEFINED PYTHON_EXECUTABLE)
 endif()
 
 # Find pybind11 and other dependencies
-find_package(Python 3.8 COMPONENTS Interpreter Development.Embed REQUIRED)
 find_package(pybind11 CONFIG REQUIRED)
 message(STATUS "Found pybind11 v${pybind11_VERSION}: ${pybind11_INCLUDE_DIRS}")
 # --- PYBIND11 INTEGRATION END ---
