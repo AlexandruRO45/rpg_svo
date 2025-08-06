@@ -5,132 +5,349 @@ on:
   push:
     tags:
       - "v*.*.*"
+    branches:
+      - main
+      - develop
   pull_request:
-    branches: ["main"]
+    branches: 
+      - main
+      - develop
   workflow_dispatch:
+    inputs:
+      publish_to_pypi:
+        description: 'Force publish to PyPI (use with caution)'
+        required: false
+        default: false
+        type: boolean
+      build_target:
+        description: 'Build target'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - 'all'
+          - 'wheels-only'
+          - 'ubuntu-only'
+
+env:
+  # Centralized version management
+  PYTHON_VERSIONS: '["3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]'
+  MIN_PYTHON_VERSION: '3.8'
+  MAX_PYTHON_VERSION: '3.13'
 
 jobs:
-  # JOB 1: Build portable manylinux wheels for PyPI using cibuildwheel
-  build_manylinux_wheels:
-    name: "Build manylinux Wheels"
-    runs-on: ubuntu-latest
+  # JOB 1: Build portable wheels for multiple platforms
+  build_wheels:
+    name: "Build Wheels (${{ matrix.os }})"
+    if: github.event.inputs.build_target != 'ubuntu-only'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-13, macos-14] # macos-13 (Intel), macos-14 (Apple Silicon)
+    
     steps:
-      - name: "Checkout Repository and Submodules"
+      - name: "Checkout Repository"
         uses: actions/checkout@v4
         with:
           submodules: "recursive"
+          fetch-depth: 0 # Full history for proper versioning
 
-      - name: "Set up QEMU for multi-architecture builds"
-        # QEMU allows the x86_64 runner to emulate an ARM machine
-        # to build the aarch64 (Jetson) wheel.
+      - name: "Set up QEMU (Linux only)"
+        if: runner.os == 'Linux'
         uses: docker/setup-qemu-action@v3
+        with:
+          platforms: all
 
-      - name: "Build Wheels with cibuildwheel"
-        uses: pypa/cibuildwheel@v2.19.0
+      - name: "Configure Build Environment"
+        shell: bash
+        run: |
+          # Set architecture-specific configurations
+          if [[ "${{ runner.os }}" == "Linux" ]]; then
+            echo "CIBW_ARCHS_LINUX=x86_64 aarch64" >> $GITHUB_ENV
+          elif [[ "${{ runner.os }}" == "Windows" ]]; then
+            echo "CIBW_ARCHS_WINDOWS=AMD64 ARM64" >> $GITHUB_ENV
+          elif [[ "${{ runner.os }}" == "macOS" ]]; then
+            if [[ "${{ matrix.os }}" == "macos-13" ]]; then
+              echo "CIBW_ARCHS_MACOS=x86_64" >> $GITHUB_ENV
+            else
+              echo "CIBW_ARCHS_MACOS=arm64" >> $GITHUB_ENV
+            fi
+          fi
+
+      - name: "Build Wheels"
+        uses: pypa/cibuildwheel@v2.21.1
         env:
-          # --- Build Configuration ---
-          # Specify both architectures we need to build for.
-          CIBW_ARCHS_LINUX: "x86_64 aarch64"
-          # Select which Python versions to build for.
-          CIBW_BUILD: "cp38-* cp310-* cp312-*"
-          # We don't need musllinux wheels.
-          CIBW_SKIP: "*-musllinux_*"
-
-          # --- Dependency Installation Script ---
-          # This script runs inside the manylinux container for each architecture.
+          # Python versions to build for
+          CIBW_BUILD: "cp38-* cp39-* cp310-* cp311-* cp312-* cp313-*"
+          
+          # Skip problematic combinations
+          CIBW_SKIP: >
+            *-musllinux_*
+            pp*
+            cp38-win_arm64
+            cp39-win_arm64
+          
+          # Test the built wheels
+          CIBW_TEST_COMMAND: "python -c 'import svo_cpp; print(svo_cpp.__version__)'"
+          CIBW_TEST_SKIP: "*-*linux_aarch64 *-win_arm64"
+          
+          # Linux-specific configuration
           CIBW_BEFORE_ALL_LINUX: |
             set -e -x
-            # 1. Build and install pybind11 from source
-            git clone https://github.com/pybind/pybind11.git
+            
+            # Update package manager
+            if command -v yum &> /dev/null; then
+              yum update -y
+              yum install -y epel-release
+              yum groupinstall -y "Development Tools"
+              yum install -y cmake3 wget git
+              ln -sf /usr/bin/cmake3 /usr/bin/cmake
+              
+              # Install dependencies
+              yum install -y eigen3-devel opencv-devel boost-devel boost-serialization
+            elif command -v apt-get &> /dev/null; then
+              apt-get update -y
+              apt-get install -y build-essential cmake wget git
+              apt-get install -y libeigen3-dev libopencv-dev libboost-all-dev
+            fi
+            
+            # Build and install pybind11
+            git clone --depth 1 --branch v2.13.6 https://github.com/pybind/pybind11.git
             cd pybind11
             mkdir build && cd build
-            cmake ..
+            cmake .. -DPYBIND11_TEST=OFF
             make -j$(nproc)
             make install
-            cd / # Return to root directory
+            cd /
 
-            # 2. Install other system dependencies
-            yum install -y eigen3-devel opencv-devel boost-serialization-devel
+          # Windows-specific configuration  
+          CIBW_BEFORE_ALL_WINDOWS: |
+            # Install vcpkg and dependencies
+            git clone https://github.com/Microsoft/vcpkg.git C:\vcpkg
+            C:\vcpkg\bootstrap-vcpkg.bat
+            C:\vcpkg\vcpkg.exe integrate install
+            C:\vcpkg\vcpkg.exe install eigen3:x64-windows opencv:x64-windows boost-serialization:x64-windows pybind11:x64-windows
 
-      - name: "Upload wheel artifacts for inspection"
-        # This step is useful for debugging and manual checks.
+          # macOS-specific configuration
+          CIBW_BEFORE_ALL_MACOS: |
+            # Install dependencies via homebrew
+            brew update
+            brew install eigen opencv boost pybind11 cmake
+            
+          # Environment variables for build
+          CIBW_ENVIRONMENT_LINUX: >
+            CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DPYTHON_EXECUTABLE=/opt/python/cp${{ env.MIN_PYTHON_VERSION }}-cp${{ env.MIN_PYTHON_VERSION }}/bin/python"
+          CIBW_ENVIRONMENT_WINDOWS: >
+            CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake"
+          CIBW_ENVIRONMENT_MACOS: >
+            CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DPYTHON_EXECUTABLE=$(which python)"
+
+      - name: "Upload Wheel Artifacts"
         uses: actions/upload-artifact@v4
         with:
-          name: linux-wheels
+          name: wheels-${{ matrix.os }}
           path: ./wheelhouse/*.whl
+          retention-days: 30
 
-  # JOB 2: Build a native wheel specifically for Ubuntu (optional, good for specific releases)
-  build_ubuntu_wheel:
-    name: "Build Native Ubuntu Wheel for Python ${{ matrix.python-version }}"
+  # JOB 2: Build development/testing wheels for Ubuntu
+  build_ubuntu_dev:
+    name: "Build Ubuntu Dev Wheels"
+    if: github.event.inputs.build_target != 'wheels-only'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.8", "3.10", "3.12"]
+        python-version: ${{ fromJson(env.PYTHON_VERSIONS) }}
+        ubuntu-version: ["20.04", "22.04", "24.04"]
+
+    container:
+      image: ubuntu:${{ matrix.ubuntu-version }}
 
     steps:
-      - name: "Checkout Repository and Submodules"
+      - name: "Setup Container Environment"
+        run: |
+          apt-get update
+          apt-get install -y software-properties-common
+          add-apt-repository -y ppa:deadsnakes/ppa
+          apt-get update
+          apt-get install -y \
+            python${{ matrix.python-version }} \
+            python${{ matrix.python-version }}-dev \
+            python${{ matrix.python-version }}-distutils \
+            python3-pip \
+            git \
+            build-essential \
+            cmake \
+            wget \
+            curl
+
+      - name: "Checkout Repository"
         uses: actions/checkout@v4
         with:
           submodules: "recursive"
 
-      - name: "Set up Python ${{ matrix.python-version }}"
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: "Install Ubuntu System Dependencies"
+      - name: "Install System Dependencies"
         run: |
-          # NOTE: You need to create an 'apt-dependencies.txt' file in your
-          # repository root with one package name per line, e.g.:
-          # build-essential
-          # cmake
-          # libeigen3-dev
-          # libopencv-dev
-          # libboost-serialization-dev
-          sudo apt-get update
-          # 1. Build and install pybind11 from source
-          git clone https://github.com/pybind/pybind11.git
+          apt-get install -y \
+            libeigen3-dev \
+            libopencv-dev \
+            libboost-all-dev \
+            pkg-config
+            
+          # Build pybind11 from source
+          git clone --depth 1 --branch v2.13.6 https://github.com/pybind/pybind11.git
           cd pybind11
           mkdir build && cd build
-          cmake ..
+          cmake .. -DPYBIND11_TEST=OFF
           make -j$(nproc)
           make install
-          cd / # Return to root directory
-          sudo xargs -a apt-dependencies.txt apt-get install -y --no-install-recommends
+          cd /
 
-      - name: "Install Python Build Tools"
+      - name: "Setup Python Environment"
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install build
+          python${{ matrix.python-version }} -m pip install --upgrade pip setuptools wheel
+          python${{ matrix.python-version }} -m pip install build pytest
 
-      - name: "Build wheel with python-build"
-        run: python -m build --wheel --outdir wheelhouse_artifact .
+      - name: "Build and Test Package"
+        run: |
+          python${{ matrix.python-version }} -m build --wheel --outdir dist/
+          python${{ matrix.python-version }} -m pip install dist/*.whl
+          python${{ matrix.python-version }} -c "import svo_cpp; print(f'Successfully imported svo_cpp version {svo_cpp.__version__}')"
 
-      - name: "Store Ubuntu wheel"
+      - name: "Run Basic Tests"
+        run: |
+          python${{ matrix.python-version }} -c "
+          import svo_cpp
+          print('Basic import test passed')
+          # Add more basic functionality tests here
+          "
+
+      - name: "Upload Ubuntu Dev Artifacts"
         uses: actions/upload-artifact@v4
         with:
-          name: ubuntu-native-wheel-python-${{ matrix.python-version }}
-          path: wheelhouse_artifact/*.whl
+          name: ubuntu-dev-${{ matrix.ubuntu-version }}-python-${{ matrix.python-version }}
+          path: dist/*.whl
+          retention-days: 7
 
-  # JOB 3: Publish to PyPI (only runs on new version tags)
+  # JOB 3: Collect all artifacts
+  collect_artifacts:
+    name: "Collect Release Artifacts"
+    needs: [build_wheels, build_ubuntu_dev]
+    if: always() && (needs.build_wheels.result == 'success' || needs.build_ubuntu_dev.result == 'success')
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: "Download All Wheel Artifacts"
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-*
+          path: collected-wheels/
+          merge-multiple: true
+
+      - name: "Prepare PyPI Distribution"
+        run: |
+          mkdir -p dist/
+          cp collected-wheels/*.whl dist/ || true
+          ls -la dist/
+
+      - name: "Upload Combined Artifacts"
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-wheels
+          path: dist/*.whl
+          retention-days: 90
+
+  # JOB 4: Publish to PyPI
   publish_to_pypi:
     name: "Publish to PyPI"
-    needs: build_manylinux_wheels
+    needs: [collect_artifacts]
+    if: >
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_to_pypi == 'true')
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/svo-cpp
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: "Download Release Wheels"
+        uses: actions/download-artifact@v4
+        with:
+          name: release-wheels
+          path: dist/
+
+      - name: "Verify Distribution Files"
+        run: |
+          ls -la dist/
+          python -m pip install twine
+          python -m twine check dist/*
+
+      - name: "Publish to PyPI"
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          print-hash: true
+          verbose: true
+
+  # JOB 5: Create GitHub Release
+  create_release:
+    name: "Create GitHub Release"
+    needs: [publish_to_pypi]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
-      # This permission is required for trusted publishing
-      id-token: write
-    environment:
-      name: pypi
-      url: https://pypi.org/p/svo_cpp # URL to your package on PyPI
+      contents: write
+      
     steps:
-      - name: "Download PyPI wheels"
+      - name: "Checkout Repository"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "Download Release Wheels"
         uses: actions/download-artifact@v4
         with:
-          name: pypi-wheels
-          path: dist/
+          name: release-wheels
+          path: release-assets/
 
-      - name: "Publish package to PyPI"
-        uses: pypa/gh-action-pypi-publish@release/v1
+      - name: "Generate Release Notes"
+        id: release_notes
+        run: |
+          # Extract version from tag
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          
+          # Generate basic release notes (you can customize this)
+          cat > release_notes.md << EOF
+          # Release $VERSION
+          
+          ## What's New
+          
+          This release includes wheels for:
+          - Linux (x86_64, aarch64)
+          - Windows (AMD64, ARM64)
+          - macOS (Intel and Apple Silicon)
+          
+          ## Python Support
+          - Python 3.8 - 3.13
+          
+          ## Installation
+          \`\`\`bash
+          pip install svo-cpp==$VERSION
+          \`\`\`
+          
+          ## Files in this release
+          $(ls -1 release-assets/*.whl | sed 's/^/- /')
+          EOF
+
+      - name: "Create Release"
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: release_notes.md
+          files: release-assets/*.whl
+          draft: false
+          prerelease: ${{ contains(github.ref, '-') }}
+          generate_release_notes: true
