@@ -6,12 +6,12 @@ on:
     tags:
       - "v*.*.*"
     branches:
-      - main
-      - develop
+      - "main"
+      - "develop"
   pull_request:
     branches: 
-      - main
-      - develop
+      - "main"
+      - "develop"
   workflow_dispatch:
     inputs:
       publish_to_pypi:
