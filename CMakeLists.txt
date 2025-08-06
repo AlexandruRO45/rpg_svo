@@ -53,6 +53,10 @@ endif()
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3 -fomit-frame-pointer -fno-signed-zeros -fno-math-errno -funroll-loops")
 
 # --- PYBIND11 INTEGRATION START ---
+if(DEFINED PYTHON_EXECUTABLE)
+  set(Python_EXECUTABLE "${PYTHON_EXECUTABLE}" CACHE FILEPATH "Python executable")
+endif()
+
 # Find pybind11 and other dependencies
 find_package(Python 3.8 COMPONENTS Interpreter Development.Embed REQUIRED)
 find_package(pybind11 CONFIG REQUIRED)
