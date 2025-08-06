@@ -30,11 +30,6 @@ on:
           - 'wheels-only'
           - 'ubuntu-only'
 
-env:
-  # Centralized version management
-  MIN_PYTHON_VERSION: '3.8'
-  MAX_PYTHON_VERSION: '3.12'
-
 jobs:
   # JOB 0: Quick validation and debugging
   validate_trigger:
@@ -112,11 +107,10 @@ jobs:
             # sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-Base.repo
             # sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-Base.repo
             yum install -y eigen3-devel opencv-devel boost-devel boost-serialization git cmake wget
-            # git clone --depth 1 --branch v2.13.1 https://github.com/pybind/pybind11.git
-            # cd pybind11 && mkdir build && cd build
-            # cmake .. -DPYBIND11_TEST=OFF
-            # make -j$(nproc) && make install
-            # cd /
+            git clone --depth 1 --branch v2.13.1 https://github.com/pybind/pybind11.git
+            cd pybind11 && mkdir build && cd build
+            cmake .. -DPYBIND11_TEST=OFF
+            make -j$(nproc) && make install
           CIBW_BEFORE_ALL_WINDOWS: |
             C:\vcpkg\vcpkg.exe install eigen3:x64-windows opencv4:x64-windows boost-serialization:x64-windows pybind11:x64-windows --triplet x64-windows
           CIBW_BEFORE_ALL_MACOS: |
@@ -187,7 +181,10 @@ jobs:
             libopencv-dev \
             libboost-all-dev \
             pkg-config \
-            pybind11-dev # FIXED: Install pybind11's development files via apt
+          git clone --depth 1 --branch v2.13.1 https://github.com/pybind/pybind11.git
+          cd pybind11 && mkdir build && cd build
+          cmake .. -DPYBIND11_TEST=OFF
+          make -j$(nproc) && sudo make install
 
       - name: "Build and Test Package in Virtual Environment"
         run: |
