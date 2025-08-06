@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=42", "wheel", "cmake>=3.12", "numpy", "opencv-python", "pybind11>=2.11"]
+requires = ["setuptools>=42", "wheel", "cmake>=3.12", "numpy", "opencv-python", "pybind11[global]>=2.13"]
 build-backend = "setuptools.build_meta"
 
 # PEP 621 Project metadata
@@ -21,30 +21,9 @@ classifiers = [
 dependencies = ["numpy", "opencv-python"]
 
 [project.optional-dependencies]
-test = ["pytest>=6.0", "pyyaml>=5.4"]
+test = ["pytest>=6.0", "pyyaml>=5.4", "pybind11[global]>=2.13"]
 
 [project.urls]
 "Bug Tracker" = "https://github.com/AlexandruRO45/rpg_svo/issues"
 "Source" = "https://github.com/AlexandruRO45/rpg_svo/"
 
-
-# -------------------------------------------------------------------
-# This section configures the cibuildwheel tool for your project.
-# -------------------------------------------------------------------
-[tool.cibuildwheel]
-# This command runs inside the manylinux container before the build starts.
-# It uses the 'yum' package manager to install the required C++ libraries.
-# build-essential is already included in the manylinux images.
-before-all = "yum install -y eigen3-devel opencv-devel boost-serialization-devel"
-
-# This explicitly tells cibuildwheel to only attempt Linux builds.
-# While the workflow file also ensures this, it's good practice to be clear.
-build = "*-manylinux_*"
-
-# This is the command to run your tests after each wheel is built.
-# {project} is a placeholder for your project's root directory.
-# test-command = "pytest {project}/tests"
-
-# Python packages required to run the tests.
-# It will use the 'test' group from your optional-dependencies.
-# test-requires = "pytest"
