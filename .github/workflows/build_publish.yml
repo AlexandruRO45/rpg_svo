@@ -88,7 +88,6 @@ jobs:
       - name: "Configure Build Environment"
         shell: bash
         run: |
-          # Set architecture-specific configurations
           if [[ "${{ runner.os }}" == "Linux" ]]; then
             echo "CIBW_ARCHS_LINUX=x86_64 aarch64" >> $GITHUB_ENV
           elif [[ "${{ runner.os }}" == "Windows" ]]; then
@@ -104,73 +103,33 @@ jobs:
       - name: "Build Wheels"
         uses: pypa/cibuildwheel@v2.21.1
         env:
-          # Python versions to build for
-          CIBW_BUILD: "cp38-* cp39-* cp310-* cp311-* cp312-* cp313-*"
-          
-          # Skip problematic combinations
-          CIBW_SKIP: >
-            *-musllinux_*
-            pp*
-            cp38-win_arm64
-            cp39-win_arm64
-          
-          # Test the built wheels
+          CIBW_BUILD: "cp38-* cp310-* cp312-*"
+          CIBW_SKIP: "*-musllinux_* pp* cp38-win_arm64 cp39-win_arm64"
           CIBW_TEST_COMMAND: "python -c 'import svo_cpp; print(svo_cpp.__version__)'"
           CIBW_TEST_SKIP: "*-*linux_aarch64 *-win_arm64"
-          
-          # Linux-specific configuration
           CIBW_BEFORE_ALL_LINUX: |
             set -e -x
-            
-            # Update package manager
-            if command -v yum &> /dev/null; then
-              yum update -y
-              yum install -y epel-release
-              yum groupinstall -y "Development Tools"
-              yum install -y cmake3 wget git
-              ln -sf /usr/bin/cmake3 /usr/bin/cmake
-              
-              # Install dependencies
-              yum install -y eigen3-devel opencv-devel boost-devel boost-serialization
-            elif command -v apt-get &> /dev/null; then
-              apt-get update -y
-              apt-get install -y build-essential cmake wget git
-              apt-get install -y libeigen3-dev libopencv-dev libboost-all-dev
-            fi
-            
-            # Build and install pybind11
-            git clone --depth 1 --branch v2.13.6 https://github.com/pybind/pybind11.git
-            cd pybind11
-            mkdir build && cd build
+            sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-Base.repo
+            sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-Base.repo
+            yum install -y eigen3-devel opencv-devel boost-devel boost-serialization git cmake wget
+            git clone --depth 1 --branch v2.13.1 https://github.com/pybind/pybind11.git
+            cd pybind11 && mkdir build && cd build
             cmake .. -DPYBIND11_TEST=OFF
-            make -j$(nproc)
-            make install
+            make -j$(nproc) && sudo make install
             cd /
-
-          # Windows-specific configuration  
           CIBW_BEFORE_ALL_WINDOWS: |
             if (Test-Path C:\vcpkg -PathType Container) {
-              cd C:\vcpkg
-              git pull
-            } else {
-              git clone https://github.com/Microsoft/vcpkg.git C:\vcpkg
+              Remove-Item C:\vcpkg -Recurse -Force
             }
+            git clone https://github.com/Microsoft/vcpkg.git C:\vcpkg
             C:\vcpkg\bootstrap-vcpkg.bat
             C:\vcpkg\vcpkg.exe install eigen3:x64-windows opencv4:x64-windows boost-serialization:x64-windows pybind11:x64-windows --triplet x64-windows
-
-          # macOS-specific configuration
           CIBW_BEFORE_ALL_MACOS: |
-            # Install dependencies via homebrew
-            brew update
             brew install eigen opencv boost pybind11 cmake
-            
-          # Environment variables for build
-          CIBW_ENVIRONMENT_LINUX: >
-            CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DPYBIND11_FINDPYTHON=ON -DPYTHON_EXECUTABLE=/opt/python/cp${{ env.MIN_PYTHON_VERSION }}-cp${{ env.MIN_PYTHON_VERSION }}/bin/python"
-          CIBW_ENVIRONMENT_WINDOWS: >
-            CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DPYBIND11_FINDPYTHON=ON -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake"
-          CIBW_ENVIRONMENT_MACOS: >
-            CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DPYBIND11_FINDPYTHON=ON -DPYTHON_EXECUTABLE=$(which python) -DCMAKE_OSX_ARCHITECTURES=${CIBW_ARCHS_MACOS}"
+
+          CIBW_ENVIRONMENT_LINUX: 'CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DPYBIND11_FINDPYTHON=ON"'
+          CIBW_ENVIRONMENT_WINDOWS: 'CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DPYBIND11_FINDPYTHON=ON -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake"'
+          CIBW_ENVIRONMENT_MACOS: 'CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DPYBIND11_FINDPYTHON=ON -DCMAKE_OSX_ARCHITECTURES=${CIBW_ARCHS_MACOS} -DCMAKE_CXX_STANDARD=11"'
 
       - name: "Upload Wheel Artifacts"
         uses: actions/upload-artifact@v4
@@ -191,13 +150,10 @@ jobs:
         include:
           - ubuntu-version: "20.04"
             python-version: "3.8"
-            python-default: true
-          - ubuntu-version: "22.04" 
+          - ubuntu-version: "22.04"
             python-version: "3.10"
-            python-default: true
           - ubuntu-version: "24.04"
             python-version: "3.12"
-            python-default: true
 
     container:
       image: ubuntu:${{ matrix.ubuntu-version }}
@@ -222,7 +178,6 @@ jobs:
           if dpkg --compare-versions "${{ matrix.python-version }}" "lt" "3.12"; then
             apt-get install -y python${{ matrix.python-version }}-distutils
           fi
-          # Install setuptools for all versions to be safe
           python${{ matrix.python-version }} -m pip install --upgrade pip setuptools wheel
 
       - name: "Checkout Repository"
@@ -237,34 +192,18 @@ jobs:
             libopencv-dev \
             libboost-all-dev \
             pkg-config
-            
-          # Build pybind11 from source
-          git clone --depth 1 --branch v2.13.6 https://github.com/pybind/pybind11.git
-          cd pybind11
-          mkdir build && cd build
+          git clone --depth 1 --branch v2.13.1 https://github.com/pybind/pybind11.git
+          cd pybind11 && mkdir build && cd build
           cmake .. -DPYBIND11_TEST=OFF
-          make -j$(nproc)
-          make install
+          make -j$(nproc) && make install
           cd /
-
-      - name: "Setup Python Environment"
-        run: |
-          python${{ matrix.python-version }} -m pip install --upgrade pip setuptools wheel
-          python${{ matrix.python-version }} -m pip install build pytest
 
       - name: "Build and Test Package"
         run: |
+          python${{ matrix.python-version }} -m pip install build
           python${{ matrix.python-version }} -m build --wheel --outdir dist/
           python${{ matrix.python-version }} -m pip install dist/*.whl
           python${{ matrix.python-version }} -c "import svo_cpp; print(f'Successfully imported svo_cpp version {svo_cpp.__version__}')"
-
-      - name: "Run Basic Tests"
-        run: |
-          python${{ matrix.python-version }} -c "
-          import svo_cpp
-          print('Basic import test passed')
-          # Add more basic functionality tests here
-          "
 
       - name: "Upload Ubuntu Dev Artifacts"
         uses: actions/upload-artifact@v4
