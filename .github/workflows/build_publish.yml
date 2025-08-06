@@ -1,3 +1,4 @@
+# .github/workflows/build_publish.yml
 name: Build and Publish
 
 on:
@@ -105,6 +106,19 @@ jobs:
           CIBW_TEST_COMMAND: "python -c 'import svo_cpp; print(f\"✅ svo_cpp {svo_cpp.__version__} imported successfully\")'"
           CIBW_TEST_SKIP: "*-*linux_aarch64"  # Skip ARM64 tests due to emulation
           
+          # Pre-build steps to ensure Python headers are available
+          CIBW_BEFORE_BUILD_LINUX: |
+            python -m pip install pybind11[global]==2.13.1
+            python -c "import pybind11; print('pybind11 version:', pybind11.__version__)"
+            
+          CIBW_BEFORE_BUILD_WINDOWS: |
+            python -m pip install pybind11[global]==2.13.1
+            echo "Installing pybind11 via vcpkg as backup..."
+            C:\vcpkg\vcpkg.exe install --triplet=x64-windows pybind11 || echo "vcpkg pybind11 install failed, continuing with pip version"
+            
+          CIBW_BEFORE_BUILD_MACOS: |
+            python -m pip install pybind11[global]==2.13.1
+          
           # Linux dependencies
           CIBW_BEFORE_ALL_LINUX: |
             set -e -x
@@ -119,7 +133,7 @@ jobs:
               # Debian/Ubuntu
               apt-get update
               apt-get install -y git cmake build-essential wget curl
-              apt-get install -y libeigen3-dev libopencv-dev libboost-all-dev python3-dev
+              apt-get install -y libeigen3-dev libopencv-dev libboost-all-dev
             fi
             
             # Install pybind11 from source for consistency
@@ -131,11 +145,21 @@ jobs:
             cmake .. -DCMAKE_BUILD_TYPE=Release -DPYBIND11_TEST=OFF
             make -j$(nproc) install
             
+            # Also install pybind11 via pip for the build environment
+            /opt/python/cp38-cp38/bin/python -m pip install pybind11[global]==2.13.1 || true
+            /opt/python/cp39-cp39/bin/python -m pip install pybind11[global]==2.13.1 || true
+            /opt/python/cp310-cp310/bin/python -m pip install pybind11[global]==2.13.1 || true
+            /opt/python/cp311-cp311/bin/python -m pip install pybind11[global]==2.13.1 || true
+            /opt/python/cp312-cp312/bin/python -m pip install pybind11[global]==2.13.1 || true
+            
           # Windows dependencies  
           CIBW_BEFORE_ALL_WINDOWS: |
             echo "Installing vcpkg dependencies..."
             C:\vcpkg\vcpkg.exe integrate install
-            C:\vcpkg\vcpkg.exe install --triplet=x64-windows eigen3 opencv4[core,imgproc] boost-serialization pybind11
+            C:\vcpkg\vcpkg.exe update
+            C:\vcpkg\vcpkg.exe install --triplet=x64-windows eigen3 opencv4[core,imgproc,imgcodecs] boost-serialization
+            echo "Verifying vcpkg packages..."
+            C:\vcpkg\vcpkg.exe list
             
           # macOS dependencies
           CIBW_BEFORE_ALL_MACOS: |
@@ -145,14 +169,14 @@ jobs:
             
           # Build environment
           CIBW_ENVIRONMENT_LINUX: |
-            CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DPYBIND11_FINDPYTHON=ON -DCMAKE_CXX_STANDARD=14"
+            CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DPython_EXECUTABLE=\$PYTHON -DCMAKE_CXX_STANDARD=14"
             PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH"
             
           CIBW_ENVIRONMENT_WINDOWS: |
-            CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DPYBIND11_FINDPYTHON=ON -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_CXX_STANDARD=14"
+            CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DPython_EXECUTABLE=%PYTHON% -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_CXX_STANDARD=14 -Dpybind11_DIR=C:/vcpkg/installed/x64-windows/share/pybind11"
             
           CIBW_ENVIRONMENT_MACOS: |
-            CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DPYBIND11_FINDPYTHON=ON -DCMAKE_OSX_ARCHITECTURES=${{ matrix.os == 'macos-13' && 'x86_64' || 'arm64' }} -DCMAKE_CXX_STANDARD=14"
+            CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DPython_EXECUTABLE=\$PYTHON -DCMAKE_OSX_ARCHITECTURES=${{ matrix.os == 'macos-13' && 'x86_64' || 'arm64' }} -DCMAKE_CXX_STANDARD=14"
             PKG_CONFIG_PATH="/opt/homebrew/lib/pkgconfig:/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH"
 
       - name: "Verify Wheels"
@@ -255,9 +279,22 @@ jobs:
           
           # Upgrade build tools
           python -m pip install --upgrade pip setuptools wheel build
+          python -m pip install pybind11[global]==2.13.1
           
-          # Build wheel
-          CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DPYBIND11_FINDPYTHON=ON -DCMAKE_CXX_STANDARD=14" \
+          # Verify Python development setup
+          python -c "
+          import sys
+          import sysconfig
+          print('Python executable:', sys.executable)
+          print('Include dir:', sysconfig.get_path('include'))
+          print('Library dir:', sysconfig.get_path('stdlib'))
+          import pybind11
+          print('pybind11 version:', pybind11.__version__)
+          print('pybind11 includes:', pybind11.get_include())
+          "
+          
+          # Build wheel with explicit Python paths
+          export CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DPython_EXECUTABLE=$(which python) -DCMAKE_CXX_STANDARD=14"
           python -m build --wheel --outdir dist/
           
           # Test installation
