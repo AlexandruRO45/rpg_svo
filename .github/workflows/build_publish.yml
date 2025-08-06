@@ -53,7 +53,7 @@ jobs:
           echo "Head Branch: ${{ github.event.pull_request.head.ref }}"
           
       - name: "Checkout Repository"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
         
       - name: "List Workflow Files"
         run: |
@@ -74,14 +74,14 @@ jobs:
     
     steps:
       - name: "Checkout Repository"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
         with:
           submodules: "recursive"
           fetch-depth: 0 # Full history for proper versioning
 
       - name: "Set up QEMU (Linux only)"
         if: runner.os == 'Linux'
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v3.6.0
         with:
           platforms: all
 
@@ -101,7 +101,7 @@ jobs:
           fi
 
       - name: "Build Wheels"
-        uses: pypa/cibuildwheel@v2.21.1
+        uses: pypa/cibuildwheel@v3.1.3
         env:
           CIBW_BUILD: "cp38-* cp310-* cp312-*"
           CIBW_SKIP: "*-musllinux_* pp* cp38-win_arm64 cp39-win_arm64"
@@ -109,14 +109,14 @@ jobs:
           CIBW_TEST_SKIP: "*-*linux_aarch64 *-win_arm64"
           CIBW_BEFORE_ALL_LINUX: |
             set -e -x
-            sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-Base.repo
-            sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-Base.repo
+            # sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-Base.repo
+            # sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-Base.repo
             yum install -y eigen3-devel opencv-devel boost-devel boost-serialization git cmake wget
-            git clone --depth 1 --branch v2.13.1 https://github.com/pybind/pybind11.git
-            cd pybind11 && mkdir build && cd build
-            cmake .. -DPYBIND11_TEST=OFF
-            make -j$(nproc) && make install
-            cd /
+            # git clone --depth 1 --branch v2.13.1 https://github.com/pybind/pybind11.git
+            # cd pybind11 && mkdir build && cd build
+            # cmake .. -DPYBIND11_TEST=OFF
+            # make -j$(nproc) && make install
+            # cd /
           CIBW_BEFORE_ALL_WINDOWS: |
             C:\vcpkg\vcpkg.exe install eigen3:x64-windows opencv4:x64-windows boost-serialization:x64-windows pybind11:x64-windows --triplet x64-windows
           CIBW_BEFORE_ALL_MACOS: |
@@ -127,7 +127,7 @@ jobs:
           CIBW_ENVIRONMENT_MACOS: 'CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DPYBIND11_FINDPYTHON=ON -DCMAKE_OSX_ARCHITECTURES=${CIBW_ARCHS_MACOS} -DCMAKE_CXX_STANDARD=11"'
 
       - name: "Upload Wheel Artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: wheels-${{ matrix.os }}
           path: ./wheelhouse/*.whl
@@ -176,7 +176,7 @@ jobs:
           fi
 
       - name: "Checkout Repository"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
         with:
           submodules: "recursive"
 
@@ -198,7 +198,7 @@ jobs:
           .venv/bin/python -c "import svo_cpp; print(f'Successfully imported svo_cpp version {svo_cpp.__version__}')"
 
       - name: "Upload Ubuntu Dev Artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: ubuntu-dev-${{ matrix.ubuntu-version }}-python-${{ matrix.python-version }}
           path: dist/*.whl
@@ -213,7 +213,7 @@ jobs:
     
     steps:
       - name: "Download All Wheel Artifacts"
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           pattern: wheels-*
           path: collected-wheels/
@@ -226,7 +226,7 @@ jobs:
           ls -la dist/
 
       - name: "Upload Combined Artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: release-wheels
           path: dist/*.whl
@@ -249,7 +249,7 @@ jobs:
 
     steps:
       - name: "Download Release Wheels"
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: release-wheels
           path: dist/
@@ -261,7 +261,7 @@ jobs:
           python -m twine check dist/*
 
       - name: "Publish to PyPI"
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@release/v1.12
         with:
           print-hash: true
           verbose: true
@@ -277,12 +277,12 @@ jobs:
       
     steps:
       - name: "Checkout Repository"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
         with:
           fetch-depth: 0
 
       - name: "Download Release Wheels"
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: release-wheels
           path: release-assets/
@@ -318,7 +318,7 @@ jobs:
           EOF
 
       - name: "Create Release"
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v2.3.2
         with:
           body_path: release_notes.md
           files: release-assets/*.whl
