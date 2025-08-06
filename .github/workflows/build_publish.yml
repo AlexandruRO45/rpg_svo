@@ -149,7 +149,6 @@ jobs:
 
           # Windows-specific configuration  
           CIBW_BEFORE_ALL_WINDOWS: |
-            # Install vcpkg and dependencies
             git clone https://github.com/Microsoft/vcpkg.git C:\vcpkg
             C:\vcpkg\bootstrap-vcpkg.bat
             C:\vcpkg\vcpkg.exe integrate install
@@ -163,11 +162,11 @@ jobs:
             
           # Environment variables for build
           CIBW_ENVIRONMENT_LINUX: >
-            CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DPYTHON_EXECUTABLE=/opt/python/cp${{ env.MIN_PYTHON_VERSION }}-cp${{ env.MIN_PYTHON_VERSION }}/bin/python"
+            CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DPYBIND11_FINDPYTHON=ON -DPYTHON_EXECUTABLE=/opt/python/cp${{ env.MIN_PYTHON_VERSION }}-cp${{ env.MIN_PYTHON_VERSION }}/bin/python"
           CIBW_ENVIRONMENT_WINDOWS: >
-            CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake"
+            CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DPYBIND11_FINDPYTHON=ON -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake"
           CIBW_ENVIRONMENT_MACOS: >
-            CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DPYTHON_EXECUTABLE=$(which python)"
+            CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DPYBIND11_FINDPYTHON=ON -DPYTHON_EXECUTABLE=$(which python) -DCMAKE_OSX_ARCHITECTURES=${CIBW_ARCHS_MACOS}"
 
       - name: "Upload Wheel Artifacts"
         uses: actions/upload-artifact@v4
