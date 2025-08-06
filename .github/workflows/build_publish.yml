@@ -59,16 +59,16 @@ jobs:
       - name: "Build Wheels"
         uses: pypa/cibuildwheel@v3.1.3
         env:
-          # READABILITY: All system dependency setup is moved to external scripts.
-          # pybind11 is now handled by pyproject.toml, removing all complex CIBW_* hooks.
-          CIBW_BEFORE_ALL: bash ${{ matrix.os.script }}
+          CIBW_BEFORE_ALL_WINDOWS: "powershell .github/scripts/install-deps.ps1"
+          CIBW_BEFORE_ALL_LINUX: "bash .github/scripts/install-deps.sh"
+          CIBW_BEFORE_ALL_MACOS: "bash .github/scripts/install-deps.sh"
           CIBW_BUILD: ${{ env.PYTHON_VERSIONS }}
           CIBW_SKIP: "*-musllinux_* pp*"
           CIBW_ARCHS_LINUX: ${{ matrix.os.arch }}
           CIBW_ARCHS_WINDOWS: ${{ matrix.os.arch }}
           CIBW_ARCHS_MACOS: ${{ matrix.os.arch }}
           CIBW_TEST_COMMAND: "python -c 'import svo_cpp; print(f\"✅ svo_cpp {svo_cpp.__version__} imported successfully\")'"
-          CIBW_TEST_SKIP: "*-*linux_aarch64" # Skip tests on emulated ARM64 for speed/stability
+          CIBW_TEST_SKIP: "*-*linux_aarch64" 
 
       - name: "Upload Wheel Artifacts"
         uses: actions/upload-artifact@v4
@@ -78,7 +78,6 @@ jobs:
 
   build_ubuntu_dev:
     name: "Ubuntu Dev (${{ matrix.ubuntu-version }}, py${{ matrix.python-version }})"
-    # SIMPLIFICATION: Logic moved from 'validate_trigger' job.
     if: >
       github.event_name != 'workflow_dispatch' ||
       github.event.inputs.build_target != 'wheels-only'
@@ -98,9 +97,11 @@ jobs:
         env: { DEBIAN_FRONTEND: noninteractive }
         run: |
           set -eux
-          apt-get update && apt-get install -y software-properties-common git python3-pip
-          add-apt-repository -y ppa:deadsnakes/ppa && apt-get update
-          apt-get install -y python${{ matrix.python-version }}{-dev,-venv}
+          apt-get update
+          apt-get install -y software-properties-common git python3-pip
+          add-apt-repository -y ppa:deadsnakes/ppa
+          apt-get update
+          apt-get install -y python${{ matrix.python-version }} python${{ matrix.python-version }}-dev python${{ matrix.python-version }}-venv
           if dpkg --compare-versions "${{ matrix.python-version }}" "lt" "3.12"; then
             apt-get install -y python${{ matrix.python-version }}-distutils
           fi
