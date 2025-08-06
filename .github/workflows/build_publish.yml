@@ -115,12 +115,10 @@ jobs:
             git clone --depth 1 --branch v2.13.1 https://github.com/pybind/pybind11.git
             cd pybind11 && mkdir build && cd build
             cmake .. -DPYBIND11_TEST=OFF
-            make -j$(nproc) && sudo make install
+            make -j$(nproc) && make install
             cd /
           CIBW_BEFORE_ALL_WINDOWS: |
-            if (Test-Path C:\vcpkg -PathType Container) {
-              Remove-Item C:\vcpkg -Recurse -Force
-            }
+            Remove-Item C:\vcpkg -Recurse -Force
             git clone https://github.com/Microsoft/vcpkg.git C:\vcpkg
             C:\vcpkg\bootstrap-vcpkg.bat
             C:\vcpkg\vcpkg.exe install eigen3:x64-windows opencv4:x64-windows boost-serialization:x64-windows pybind11:x64-windows --triplet x64-windows
@@ -169,12 +167,12 @@ jobs:
           apt-get install -y \
             python${{ matrix.python-version }} \
             python${{ matrix.python-version }}-dev \
+            python${{ matrix.python-version }}-venv \
             python3-pip \
             git \
             build-essential \
             cmake \
             wget
-          # FIXED: Conditionally install distutils only for Python versions < 3.12
           if dpkg --compare-versions "${{ matrix.python-version }}" "lt" "3.12"; then
             apt-get install -y python${{ matrix.python-version }}-distutils
           fi
@@ -192,18 +190,23 @@ jobs:
             libopencv-dev \
             libboost-all-dev \
             pkg-config
-          git clone --depth 1 --branch v2.13.1 https://github.com/pybind/pybind11.git
-          cd pybind11 && mkdir build && cd build
-          cmake .. -DPYBIND11_TEST=OFF
-          make -j$(nproc) && make install
-          cd /
 
-      - name: "Build and Test Package"
+      - name: "Build and Test Package in Virtual Environment"
         run: |
-          python${{ matrix.python-version }} -m pip install build
-          python${{ matrix.python-version }} -m build --wheel --outdir dist/
-          python${{ matrix.python-version }} -m pip install dist/*.whl
-          python${{ matrix.python-version }} -c "import svo_cpp; print(f'Successfully imported svo_cpp version {svo_cpp.__version__}')"
+          # Create a virtual environment
+          python${{ matrix.python-version }} -m venv .venv
+          
+          # Use the venv's pip to install build tools
+          .venv/bin/python -m pip install --upgrade pip setuptools wheel build
+          
+          # Build the wheel using the venv's python
+          .venv/bin/python -m build --wheel --outdir dist/
+          
+          # Install the newly built wheel into the venv
+          .venv/bin/python -m pip install dist/*.whl
+          
+          # Run the import test using the venv's python
+          .venv/bin/python -c "import svo_cpp; print(f'Successfully imported svo_cpp version {svo_cpp.__version__}')"
 
       - name: "Upload Ubuntu Dev Artifacts"
         uses: actions/upload-artifact@v4
