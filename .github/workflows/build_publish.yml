@@ -149,10 +149,14 @@ jobs:
 
           # Windows-specific configuration  
           CIBW_BEFORE_ALL_WINDOWS: |
-            git clone https://github.com/Microsoft/vcpkg.git C:\vcpkg
+            if (Test-Path C:\vcpkg -PathType Container) {
+              cd C:\vcpkg
+              git pull
+            } else {
+              git clone https://github.com/Microsoft/vcpkg.git C:\vcpkg
+            }
             C:\vcpkg\bootstrap-vcpkg.bat
-            C:\vcpkg\vcpkg.exe integrate install
-            C:\vcpkg\vcpkg.exe install eigen3:x64-windows opencv:x64-windows boost-serialization:x64-windows pybind11:x64-windows
+            C:\vcpkg\vcpkg.exe install eigen3:x64-windows opencv4:x64-windows boost-serialization:x64-windows pybind11:x64-windows --triplet x64-windows
 
           # macOS-specific configuration
           CIBW_BEFORE_ALL_MACOS: |
@@ -201,26 +205,25 @@ jobs:
     steps:
       - name: "Setup Container Environment"
         run: |
+          export DEBIAN_FRONTEND=noninteractive
           apt-get update
           apt-get install -y software-properties-common
-          
-          # For Ubuntu 20.04, we might need to add deadsnakes for newer Python versions
-          if [[ "${{ matrix.ubuntu-version }}" == "20.04" ]]; then
-            add-apt-repository -y ppa:deadsnakes/ppa
-            apt-get update
-          fi
-          
-          # Install the default Python version and dev tools
+          add-apt-repository -y ppa:deadsnakes/ppa
+          apt-get update
           apt-get install -y \
             python${{ matrix.python-version }} \
             python${{ matrix.python-version }}-dev \
-            python${{ matrix.python-version }}-distutils \
             python3-pip \
             git \
             build-essential \
             cmake \
-            wget \
-            curl
+            wget
+          # FIXED: Conditionally install distutils only for Python versions < 3.12
+          if dpkg --compare-versions "${{ matrix.python-version }}" "lt" "3.12"; then
+            apt-get install -y python${{ matrix.python-version }}-distutils
+          fi
+          # Install setuptools for all versions to be safe
+          python${{ matrix.python-version }} -m pip install --upgrade pip setuptools wheel
 
       - name: "Checkout Repository"
         uses: actions/checkout@v4
