@@ -20,14 +20,44 @@ jobs:
         with:
           submodules: "recursive"
 
+      - name: "Set up QEMU for multi-architecture builds"
+        # QEMU allows the x86_64 runner to emulate an ARM machine
+        # to build the aarch64 (Jetson) wheel.
+        uses: docker/setup-qemu-action@v3
+
       - name: "Build Wheels with cibuildwheel"
         uses: pypa/cibuildwheel@v2.19.0
+        env:
+          # --- Build Configuration ---
+          # Specify both architectures we need to build for.
+          CIBW_ARCHS_LINUX: "x86_64 aarch64"
+          # Select which Python versions to build for.
+          CIBW_BUILD: "cp38-* cp310-* cp312-*"
+          # We don't need musllinux wheels.
+          CIBW_SKIP: "*-musllinux_*"
 
-      - name: "Store PyPI wheels"
+          # --- Dependency Installation Script ---
+          # This script runs inside the manylinux container for each architecture.
+          CIBW_BEFORE_ALL_LINUX: |
+            set -e -x
+            # 1. Build and install pybind11 from source
+            git clone https://github.com/pybind/pybind11.git
+            cd pybind11
+            mkdir build && cd build
+            cmake ..
+            make -j$(nproc)
+            make install
+            cd / # Return to root directory
+
+            # 2. Install other system dependencies
+            yum install -y eigen3-devel opencv-devel boost-serialization-devel
+
+      - name: "Upload wheel artifacts for inspection"
+        # This step is useful for debugging and manual checks.
         uses: actions/upload-artifact@v4
         with:
-          name: pypi-wheels
-          path: wheelhouse/*.whl
+          name: linux-wheels
+          path: ./wheelhouse/*.whl
 
   # JOB 2: Build a native wheel specifically for Ubuntu (optional, good for specific releases)
   build_ubuntu_wheel:
@@ -59,6 +89,14 @@ jobs:
           # libopencv-dev
           # libboost-serialization-dev
           sudo apt-get update
+          # 1. Build and install pybind11 from source
+          git clone https://github.com/pybind/pybind11.git
+          cd pybind11
+          mkdir build && cd build
+          cmake ..
+          make -j$(nproc)
+          make install
+          cd / # Return to root directory
           sudo xargs -a apt-dependencies.txt apt-get install -y --no-install-recommends
 
       - name: "Install Python Build Tools"
