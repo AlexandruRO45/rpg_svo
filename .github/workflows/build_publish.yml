@@ -6,12 +6,13 @@ on:
     tags:
       - "v*.*.*"
     branches:
-      - "main"
-      - "develop"
+      - main
+      - develop
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: 
-      - "main"
-      - "develop"
+      - main
+      - develop
   workflow_dispatch:
     inputs:
       publish_to_pypi:
@@ -36,9 +37,35 @@ env:
   MAX_PYTHON_VERSION: '3.13'
 
 jobs:
+  # JOB 0: Quick validation and debugging
+  validate_trigger:
+    name: "Validate Workflow Trigger"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Debug Workflow Trigger"
+        run: |
+          echo "🚀 Workflow triggered successfully!"
+          echo "Event: ${{ github.event_name }}"
+          echo "Ref: ${{ github.ref }}"
+          echo "Actor: ${{ github.actor }}"
+          echo "Repository: ${{ github.repository }}"
+          echo "PR Number: ${{ github.event.number }}"
+          echo "Base Branch: ${{ github.event.pull_request.base.ref }}"
+          echo "Head Branch: ${{ github.event.pull_request.head.ref }}"
+          
+      - name: "Checkout Repository"
+        uses: actions/checkout@v4
+        
+      - name: "List Workflow Files"
+        run: |
+          echo "📁 Checking workflow files:"
+          ls -la .github/workflows/
+          echo "✅ build_publish.yml exists"
+
   # JOB 1: Build portable wheels for multiple platforms
   build_wheels:
     name: "Build Wheels (${{ matrix.os }})"
+    needs: validate_trigger
     if: github.event.inputs.build_target != 'ubuntu-only'
     runs-on: ${{ matrix.os }}
     strategy:
@@ -153,6 +180,7 @@ jobs:
   # JOB 2: Build development/testing wheels for Ubuntu
   build_ubuntu_dev:
     name: "Build Ubuntu Dev Wheels"
+    needs: validate_trigger
     if: github.event.inputs.build_target != 'wheels-only'
     runs-on: ubuntu-latest
     strategy:
