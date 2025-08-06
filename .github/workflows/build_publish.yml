@@ -32,9 +32,8 @@ on:
 
 env:
   # Centralized version management
-  PYTHON_VERSIONS: '["3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]'
   MIN_PYTHON_VERSION: '3.8'
-  MAX_PYTHON_VERSION: '3.13'
+  MAX_PYTHON_VERSION: '3.12'
 
 jobs:
   # JOB 0: Quick validation and debugging
@@ -186,7 +185,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ${{ fromJson(env.PYTHON_VERSIONS) }}
+        python-version: ["3.8", "3.10", "3.12"]
         ubuntu-version: ["20.04", "22.04", "24.04"]
 
     container:
