@@ -107,7 +107,6 @@ jobs:
             # sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-Base.repo
             # sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-Base.repo
             yum install -y eigen3-devel opencv-devel boost-devel boost-serialization git cmake wget python3-devel python3-pip
-            find / -name "libpython3*.so*" || true
             pip install pybind11==2.13.1
           CIBW_BEFORE_ALL_WINDOWS: |
             C:\vcpkg\vcpkg.exe install eigen3:x64-windows opencv4:x64-windows boost-serialization:x64-windows pybind11:x64-windows --triplet x64-windows
@@ -182,7 +181,7 @@ jobs:
           git clone --depth 1 --branch v2.13.1 https://github.com/pybind/pybind11.git
           cd pybind11 && mkdir build && cd build
           cmake .. -DPYBIND11_TEST=OFF
-          make -j$(nproc) && sudo make install
+          make -j$(nproc) && make install
 
       - name: "Build and Test Package in Virtual Environment"
         run: |
