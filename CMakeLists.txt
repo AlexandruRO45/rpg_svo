@@ -41,9 +41,9 @@ set(CMAKE_CXX_FLAGS "-Wall -Wno-unused-variable -Wno-unused-but-set-variable -Wn
 # Add platform-specific flags for Linux only
 if(UNIX AND NOT APPLE)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_LINUX -D_REENTRANT -march=native")
-  if(DEFINED ENV{ARM_ARCHITECTURE})
+  if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mfpu=neon -march=armv7-a")
-  else()
+  elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|amd64")
     # x86-specific SSE flags for Linux
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mmmx -msse -msse2 -msse3 -mssse3")
   endif()
