@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=42", "wheel", "cmake>=3.12", "numpy", "opencv-python", "pybind11[global]>=2.13"]
+requires = ["setuptools>=42", "wheel", "cmake>=3.12", "numpy", "opencv-python", "pybind11"]
 build-backend = "setuptools.build_meta"
 
 # PEP 621 Project metadata
@@ -8,22 +8,30 @@ name = "svo_cpp"
 version = "1.0.0"
 description = "Semi Direct Visual Odometry with python bindings"
 maintainers = [{ name = "Alex S.", email = "savaalexandru562@gmail.com" }]
-license = { file = "LICENSE" } # Points to your license file
-requires-python = ">=3.8"
+license = { file = "LICENSE" }
+readme = "README.md"
+requires-python = ">=3.9"
 classifiers = [
     'Intended Audience :: Developers',
     'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
     'Programming Language :: C++',
     'Programming Language :: Python :: 3',
     'Programming Language :: Python :: 3 :: Only',
-    # ... other classifiers
+    'Programming Language :: Python :: 3.9',
+    'Programming Language :: Python :: 3.10',
+    'Programming Language :: Python :: 3.11',
+    'Programming Language :: Python :: 3.12',
+    'Operating System :: POSIX :: Linux',
+    'Topic :: Scientific/Engineering :: Computer Vision',
+    'Topic :: Software Development :: Libraries :: Python Modules',
 ]
-dependencies = ["numpy", "opencv-python"]
+dependencies = ["numpy>=1.19.0", "opencv-python>=4.5.0"]
 
 [project.optional-dependencies]
-test = ["pytest>=6.0", "pyyaml>=5.4", "pybind11[global]>=2.13"]
+test = ["pytest>=6.0", "pyyaml>=5.4"]
+dev = ["pytest>=6.0", "pyyaml>=5.4", "build", "twine"]
 
 [project.urls]
 "Bug Tracker" = "https://github.com/AlexandruRO45/rpg_svo/issues"
 "Source" = "https://github.com/AlexandruRO45/rpg_svo/"
-
+"Documentation" = "https://github.com/AlexandruRO45/rpg_svo/"

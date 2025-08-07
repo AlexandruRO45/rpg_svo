@@ -1,5 +1,10 @@
-build-essential
 cmake
-libeigen3-dev
-libopencv-dev
+build-essential
+pkg-config
+libboost-dev
+libboost-thread-dev
+libboost-system-dev
 libboost-serialization-dev
+libopencv-dev
+libeigen3-dev
+git

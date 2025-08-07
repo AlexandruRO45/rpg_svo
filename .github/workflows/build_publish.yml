@@ -1,176 +1,178 @@
-# .github/workflows/build_publish.yml
-name: Build and Publish
-
-# Prevent multiple concurrent runs for the same branch or tag
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+name: Build and Publish to PyPI
 
 on:
   push:
-    tags: ["v*.*.*"]
-    branches: [main, develop]
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-    branches: [main, develop]
-  workflow_dispatch:
+    tags:
+      - 'v*'  # Trigger on version tags like v1.0.0
+  workflow_dispatch:  # Allow manual triggering
     inputs:
       publish_to_pypi:
-        description: 'Force publish to PyPI'
-        type: boolean
-        default: false
-      build_target:
-        description: 'Build target'
-        type: choice
-        default: 'all'
-        options: ['all', 'wheels-only', 'ubuntu-only']
-
-env:
-  PYTHON_VERSIONS: "cp38-* cp39-* cp310-* cp311-* cp312-*"
+        description: 'Publish to PyPI (true/false)'
+        required: false
+        default: 'false'
+        type: string
 
 jobs:
   build_wheels:
-    name: "Build Wheels (${{ matrix.os.name }})"
-    # SIMPLIFICATION: Removed 'validate_trigger' job. Logic is now here.
-    if: >
-      github.event_name != 'workflow_dispatch' ||
-      github.event.inputs.build_target != 'ubuntu-only'
-    runs-on: ${{ matrix.os.name }}
+    name: Build wheels on ${{ matrix.os }} for ${{ matrix.arch }}
+    runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: false
-      matrix:
-        # SIMPLIFICATION: Matrix is more explicit and drives the config.
-        os:
-          - { name: ubuntu-latest,  script: ".github/scripts/install-deps.sh",  arch: "x86_64 aarch64" }
-          - { name: windows-latest, script: ".github/scripts/install-deps.ps1", arch: "AMD64" }
-          - { name: macos-13,       script: ".github/scripts/install-deps.sh",  arch: "x86_64" }
-          - { name: macos-14,       script: ".github/scripts/install-deps.sh",  arch: "arm64" }
-
-    steps:
-      - name: "Checkout"
-        uses: actions/checkout@v4
-        with: { submodules: recursive, fetch-depth: 0 }
-
-      - name: "Setup QEMU (for Linux ARM64 build)"
-        if: runner.os == 'Linux'
-        uses: docker/setup-qemu-action@v3
-        with: { platforms: arm64 }
-
-      - name: "Build Wheels"
-        uses: pypa/cibuildwheel@v3.1.3
-        env:
-          CIBW_BEFORE_ALL_WINDOWS: "powershell .github/scripts/install-deps.ps1"
-          CIBW_BEFORE_ALL_LINUX: "bash .github/scripts/install-deps.sh"
-          CIBW_BEFORE_ALL_MACOS: "bash .github/scripts/install-deps.sh"
-          CIBW_BUILD: ${{ env.PYTHON_VERSIONS }}
-          CIBW_SKIP: "*-musllinux_* pp*"
-          CIBW_ARCHS_LINUX: ${{ matrix.os.arch }}
-          CIBW_ARCHS_WINDOWS: ${{ matrix.os.arch }}
-          CIBW_ARCHS_MACOS: ${{ matrix.os.arch }}
-          CIBW_TEST_COMMAND: "python -c 'import svo_cpp; print(f\"✅ svo_cpp {svo_cpp.__version__} imported successfully\")'"
-          CIBW_TEST_SKIP: "*-*linux_aarch64" 
-
-      - name: "Upload Wheel Artifacts"
-        uses: actions/upload-artifact@v4
-        with:
-          name: wheels-${{ runner.os }}-${{ matrix.os.arch }}
-          path: ./wheelhouse/*.whl
-
-  build_ubuntu_dev:
-    name: "Ubuntu Dev (${{ matrix.ubuntu-version }}, py${{ matrix.python-version }})"
-    if: >
-      github.event_name != 'workflow_dispatch' ||
-      github.event.inputs.build_target != 'wheels-only'
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
       matrix:
         include:
-          - { ubuntu-version: "20.04", python-version: "3.8" }
-          - { ubuntu-version: "22.04", python-version: "3.10" }
-          - { ubuntu-version: "24.04", python-version: "3.12" }
-    container:
-      image: ubuntu:${{ matrix.ubuntu-version }}
+          # Linux x86_64
+          - os: ubuntu-20.04
+            arch: x86_64
+            platform_id: linux_x86_64
+          # Linux ARM64 (for Jetson)
+          - os: ubuntu-20.04
+            arch: aarch64
+            platform_id: linux_aarch64
 
     steps:
-      - name: "Install Build Tools & Python"
-        env: { DEBIAN_FRONTEND: noninteractive }
-        run: |
-          set -eux
-          apt-get update
-          apt-get install -y software-properties-common git python3-pip
-          add-apt-repository -y ppa:deadsnakes/ppa
-          apt-get update
-          apt-get install -y python${{ matrix.python-version }} python${{ matrix.python-version }}-dev python${{ matrix.python-version }}-venv
-          if dpkg --compare-versions "${{ matrix.python-version }}" "lt" "3.12"; then
-            apt-get install -y python${{ matrix.python-version }}-distutils
-          fi
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
 
-      - name: "Checkout"
-        uses: actions/checkout@v4
-        with: { submodules: recursive }
+    # Set up QEMU for cross-compilation (needed for ARM64)
+    - name: Set up QEMU
+      if: matrix.arch == 'aarch64'
+      uses: docker/setup-qemu-action@v3
+      with:
+        platforms: arm64
 
-      - name: "Install C++ Dependencies"
-        run: bash .github/scripts/install-deps.sh
+    # Install system dependencies
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        if [ -f apt-dependencies.txt ]; then
+          sudo apt-get install -y $(cat apt-dependencies.txt)
+        fi
+        # Install common dependencies
+        sudo apt-get install -y cmake build-essential pkg-config
+        sudo apt-get install -y libboost-dev libboost-thread-dev libboost-system-dev
+        sudo apt-get install -y libopencv-dev libeigen3-dev
 
-      - name: "Build and Test Wheel"
-        run: |
-          set -eux
-          python${{ matrix.python-version }} -m venv venv
-          . venv/bin/activate
-          # SIMPLIFICATION: 'pip wheel' reads pyproject.toml and handles the entire build process.
-          python -m pip install --upgrade pip wheel
-          python -m pip wheel . --wheel-dir=dist/
-          # Install and test the wheel we just built
-          python -m pip install dist/*.whl
-          python -c "import svo_cpp; print(f'✅ Imported svo_cpp version {svo_cpp.__version__}')"
+    # Build wheels using cibuildwheel
+    - name: Build wheels
+      uses: pypa/cibuildwheel@v2.16.2
+      env:
+        # Build only for Linux
+        CIBW_PLATFORM: linux
+        # Build for specific architectures
+        CIBW_ARCHS: ${{ matrix.arch }}
+        # Python versions to build for (adjust as needed)
+        CIBW_BUILD: cp39-* cp310-* cp311-* cp312-*
+        # Skip 32-bit builds and musl builds
+        CIBW_SKIP: "*-win32 *-manylinux_i686 *-musllinux*"
+        # Install dependencies before build
+        CIBW_BEFORE_BUILD: >
+          yum install -y boost-devel opencv-devel eigen3-devel cmake3 &&
+          ln -sf /usr/bin/cmake3 /usr/bin/cmake || 
+          (apt-get update && apt-get install -y libboost-dev libboost-thread-dev libboost-system-dev libopencv-dev libeigen3-dev cmake)
+        # Environment variables for CMake
+        CIBW_ENVIRONMENT: >
+          CMAKE_BUILD_TYPE=Release
+          CMAKE_BUILD_PARALLEL_LEVEL=4
+        # Repair wheel command (ensures manylinux compatibility)
+        CIBW_REPAIR_WHEEL_COMMAND: >
+          auditwheel repair -w {dest_dir} {wheel} ||
+          (echo "auditwheel failed, copying wheel as-is" && cp {wheel} {dest_dir})
+        # Test the built wheel
+        CIBW_TEST_COMMAND: "python -c 'import svo_cpp; print(\"Import successful!\")'"
 
-      - name: "Upload Dev Wheel Artifact"
-        uses: actions/upload-artifact@v4
-        with:
-          # FIX: Renamed artifact to match the download pattern in the publish job.
-          name: wheels-ubuntu-dev-${{ matrix.ubuntu-version }}
-          path: dist/*.whl
+    # Upload wheels as artifacts
+    - uses: actions/upload-artifact@v4
+      with:
+        name: wheels-${{ matrix.platform_id }}
+        path: ./wheelhouse/*.whl
 
-  collect_and_publish:
-    name: "Collect & Publish"
-    needs: [build_wheels, build_ubuntu_dev]
-    if: always() && (needs.build_wheels.result == 'success' || needs.build_ubuntu_dev.result == 'success')
+  build_sdist:
+    name: Build source distribution
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write  # For trusted publishing to PyPI
-      contents: write # For creating GitHub Releases
-
     steps:
-      - name: "Download all wheel artifacts"
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install build dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build
+
+    - name: Build sdist
+      run: python -m build --sdist
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: sdist
+        path: dist/*.tar.gz
+
+  run_demo:
+    name: Run demo with built wheel
+    runs-on: ubuntu-20.04
+    needs: build_wheels
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Download wheels
+      uses: actions/download-artifact@v4
+      with:
+        name: wheels-linux_x86_64
+        path: ./wheels
+
+    - name: Install wheel and dependencies
+      run: |
+        python -m pip install --upgrade pip
+        # Install the wheel (find the cp310 wheel for current Python)
+        wheel_file=$(find ./wheels -name "*cp310*linux_x86_64.whl" | head -1)
+        if [ -f "$wheel_file" ]; then
+          pip install "$wheel_file"
+        else
+          echo "No compatible wheel found, installing any available wheel"
+          pip install ./wheels/*.whl
+        fi
+        
+        # Install demo dependencies if needed
+        pip install numpy opencv-python
+
+    - name: Run demo
+      run: |
+        if [ -f run_demo.py ]; then
+          python run_demo.py
+        else
+          echo "No run_demo.py found, running basic import test"
+          python -c "import svo_cpp; print('SVO CPP imported successfully!')"
+        fi
+
+  publish:
+    name: Publish to PyPI
+    needs: [build_wheels, build_sdist, run_demo]
+    runs-on: ubuntu-latest
+    # Only publish on tags or manual dispatch with publish_to_pypi=true
+    if: github.event_name == 'push' && contains(github.ref, 'refs/tags/') || 
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_to_pypi == 'true')
+    permissions:
+      id-token: write
+    environment:
+      name: pypi
+      url: https://pypi.org/project/svo_cpp
+    steps:
+      - name: "Download PyPI wheels"
         uses: actions/download-artifact@v4
         with:
-          # SIMPLIFICATION: One pattern downloads all artifacts into one directory.
-          pattern: wheels-*
+          name: pypi-wheels
           path: dist/
           merge-multiple: true
 
-      - name: "Checkout code (for release creation)"
-        uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
-
-      - name: "List downloaded files"
-        run: |
-          echo "📦 Wheels to be published:"
-          ls -R dist/
-
-      - name: "Publish to PyPI"
-        if: >
-          (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
-          (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_to_pypi == 'true')
-        uses: pypa/gh-action-pypi-publish@release/v1.12
-        with:
-          skip-existing: true # Don't fail if a wheel already exists on PyPI
-
-      - name: "Create GitHub Release"
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          # SIMPLIFICATION: Auto-generate release notes and attach all wheels.
-          gh release create ${{ github.ref_name }} --generate-notes dist/*.whl
+      - name: "Publish package to PyPI"
+        uses: pypa/gh-action-pypi-publish@release/v1

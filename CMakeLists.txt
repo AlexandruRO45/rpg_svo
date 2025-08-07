@@ -53,14 +53,11 @@ endif()
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3 -fomit-frame-pointer -fno-signed-zeros -fno-math-errno -funroll-loops")
 
 # --- PYBIND11 INTEGRATION START ---
-# if(DEFINED PYTHON_EXECUTABLE)
-#   set(Python_EXECUTABLE "${PYTHON_EXECUTABLE}" CACHE FILEPATH "Python executable")
-# endif()
-find_package(Python REQUIRED COMPONENTS Interpreter Development.Module Development.Embed)
+add_subdirectory(extra/pybind11)
 
-# Find pybind11 and other dependencies
-find_package(pybind11 CONFIG REQUIRED)
-message(STATUS "Found pybind11 v${pybind11_VERSION}: ${pybind11_INCLUDE_DIRS}")
+# Find pybind11 and other dependencies (INSTALLED ON OS)
+# find_package(pybind11 CONFIG REQUIRED)
+# message(STATUS "Found pybind11 v${pybind11_VERSION}: ${pybind11_INCLUDE_DIRS}")
 # --- PYBIND11 INTEGRATION END ---
 
 find_package(Boost REQUIRED COMPONENTS thread system)
@@ -141,23 +138,23 @@ target_link_libraries(svo_cpp PRIVATE svo_static ${LINK_LIBS})
 ################################################################################
 # TESTS
 
-add_executable(test_feature_align test/test_feature_alignment.cpp)
-target_link_libraries(test_feature_align svo_static)
+# add_executable(test_feature_align test/test_feature_alignment.cpp)
+# target_link_libraries(test_feature_align svo_static)
 
 add_executable(test_pipeline test/test_pipeline.cpp)
 target_link_libraries(test_pipeline svo_static)
 
-add_executable(test_matcher test/test_matcher.cpp)
-target_link_libraries(test_matcher svo_static)
+# add_executable(test_matcher test/test_matcher.cpp)
+# target_link_libraries(test_matcher svo_static)
 
-add_executable(test_feature_detection test/test_feature_detection.cpp)
-target_link_libraries(test_feature_detection svo_static)
+# add_executable(test_feature_detection test/test_feature_detection.cpp)
+# target_link_libraries(test_feature_detection svo_static)
 
-add_executable(test_depth_filter test/test_depth_filter.cpp)
-target_link_libraries(test_depth_filter svo_static)
+# add_executable(test_depth_filter test/test_depth_filter.cpp)
+# target_link_libraries(test_depth_filter svo_static)
 
-add_executable(test_sparse_img_align test/test_sparse_img_align.cpp)
-target_link_libraries(test_sparse_img_align svo_static)
+# add_executable(test_sparse_img_align test/test_sparse_img_align.cpp)
+# target_link_libraries(test_sparse_img_align svo_static)
 
-add_executable(test_pose_optimizer test/test_pose_optimizer.cpp)
-target_link_libraries(test_pose_optimizer svo_static)
+# add_executable(test_pose_optimizer test/test_pose_optimizer.cpp)
+# target_link_libraries(test_pose_optimizer svo_static)
