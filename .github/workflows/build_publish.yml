@@ -38,6 +38,8 @@ jobs:
           CIBW_BEFORE_ALL_LINUX: bash .github/scripts/install_sys_deps.sh
           CIBW_PLATFORM: linux
           CIBW_ARCHS: ${{ matrix.arch }}
+          CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
+          CIBW_MANYLINUX_AARCH64_IMAGE: manylinux_2_28
           CIBW_SKIP: "*-musllinux*"
           CIBW_BUILD_VERBOSITY: 1
           CIBW_BUILD: "cp38-* cp310-* cp312-*"
@@ -73,4 +75,4 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
-          packages_dir: final_dist
+          packages-dir: final_dist
