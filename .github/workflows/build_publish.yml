@@ -60,21 +60,23 @@ jobs:
     name: Publish Wheels to PyPI
     needs: build-linux
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      id-token: write
 
     steps:
       - name: Download all wheel artifacts
         uses: actions/download-artifact@v4
         with:
-          path: dist
+          path: dist/
 
       - name: Flatten dist structure
         run: |
           mkdir -p final_dist
-          find dist -name "*.whl" -exec cp {} final_dist/ \;
+          find dist/ -name "*.whl" -exec cp {} final_dist/ \;
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
-          packages-dir: final_dist
+          packages-dir: final_dist/

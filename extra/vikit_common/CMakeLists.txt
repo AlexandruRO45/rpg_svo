@@ -13,7 +13,7 @@ if(UNIX AND NOT APPLE)
   SET(CMAKE_CXX_FLAGS "-Wall -D_LINUX -D_REENTRANT -march=native -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unknown-pragmas")
 ENDIF()
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm")
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=armv7-a") # TODO mfpu=neon cannot be built CI/CD
+  # SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=armv7-a") # TODO mfpu=neon cannot be built CI/CD
 ELSE()
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mmmx -msse -msse -msse2 -msse3 -mssse3")
 ENDIF()

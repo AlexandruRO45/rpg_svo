@@ -6,7 +6,7 @@ set(CMAKE_BUILD_TYPE Release)
 SET(CMAKE_CXX_FLAGS "-Wall -Werror -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unknown-pragmas")
 
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm")
-	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=armv7-a") # TODO mfpu=neon cannot be built CI/CD
+	# SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=armv7-a") # TODO mfpu=neon cannot be built CI/CD
 ELSE()
 	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -mmmx -msse -msse -msse2 -msse3 -mssse3 -fomit-frame-pointer")
 ENDIF()
