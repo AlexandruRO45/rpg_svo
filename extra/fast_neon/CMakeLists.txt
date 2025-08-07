@@ -3,10 +3,10 @@ project(fast)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE Release)
-SET(CMAKE_CXX_FLAGS "-Wall -Werror -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unknown-pragmas")
+# SET(CMAKE_CXX_FLAGS "-Wall -Werror -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unknown-pragmas")
 
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm")
-	# SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=armv7-a") # TODO mfpu=neon cannot be built CI/CD
+	# SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=armv7-a") # TODO mfpu=neon nor march=armv7-a cannot be built CI/CD they crash
 ELSE()
 	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -mmmx -msse -msse -msse2 -msse3 -mssse3 -fomit-frame-pointer")
 ENDIF()
@@ -27,13 +27,22 @@ set(SOURCES
   src/nonmax_3x3.cpp
   )
 
-IF(DEFINED ENV{ARM_ARCHITECTURE})
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm")
   LIST(APPEND SOURCES ${PROJECT_SOURCE_DIR}/src/faster_corner_9_neon.cpp)
 ELSE()
   LIST(APPEND SOURCES ${PROJECT_SOURCE_DIR}/src/faster_corner_10_sse.cpp)
 ENDIF()
 
 add_library(${PROJECT_NAME} SHARED ${SOURCES})
+target_compile_options(${PROJECT_NAME} PRIVATE
+  -Wall
+  -Werror
+  -Wno-unused-variable
+  -Wno-unused-but-set-variable
+  -Wno-unknown-pragmas
+  -O3
+  -fomit-frame-pointer
+)
 target_include_directories(${PROJECT_NAME}
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
