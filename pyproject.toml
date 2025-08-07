@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=42", "wheel", "cmake>=3.12", "numpy", "opencv-python", "pybind11"]
+requires = ["setuptools>=42", "wheel", "cmake>=3.12", "numpy", "opencv-python"]
 build-backend = "setuptools.build_meta"
 
 # PEP 621 Project metadata

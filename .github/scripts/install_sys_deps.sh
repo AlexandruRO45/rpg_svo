@@ -1,9 +1,9 @@
 #!/bin/bash
 set -e
 
-dnf update -y
-dnf install -y epel-release
-dnf install -y \
+yum update -y
+yum install -y epel-release
+yum install -y \
     boost-devel \
     opencv-devel \
     eigen3-devel \
