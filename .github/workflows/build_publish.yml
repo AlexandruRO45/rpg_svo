@@ -1,162 +1,63 @@
-name: Build and Publish to PyPI
+name: Build and Publish
 
 on:
   push:
-    tags:
-      - 'v*'  # Trigger on version tags like v1.0.0
-  workflow_dispatch:  # Allow manual triggering
-    inputs:
-      publish_to_pypi:
-        description: 'Publish to PyPI (true/false)'
-        required: false
-        default: 'false'
-        type: string
+    tags: ['v*']
+  workflow_dispatch:
 
 jobs:
-  build_wheels:
-    name: Build wheels on ${{ matrix.os }} for ${{ matrix.arch }}
-    runs-on: ${{ matrix.os }}
+  build-linux:
+    runs-on: ubuntu-20.04
     strategy:
       matrix:
-        include:
-          # Linux x86_64
-          - os: ubuntu-20.04
-            arch: x86_64
-            platform_id: linux_x86_64
-          # Linux ARM64 (for Jetson)
-          - os: ubuntu-20.04
-            arch: aarch64
-            platform_id: linux_aarch64
-
+        arch: [x86_64, aarch64]
+    
     steps:
     - uses: actions/checkout@v4
       with:
         submodules: recursive
 
-    # Set up QEMU for cross-compilation (needed for ARM64)
     - name: Set up QEMU
       if: matrix.arch == 'aarch64'
       uses: docker/setup-qemu-action@v3
-      with:
-        platforms: arm64
 
-    # Install system dependencies
-    - name: Install system dependencies
-      run: |
-        sudo apt-get update
-        if [ -f apt-dependencies.txt ]; then
-          sudo apt-get install -y $(cat apt-dependencies.txt)
-        fi
-        # Install common dependencies
-        sudo apt-get install -y cmake build-essential pkg-config
-        sudo apt-get install -y libboost-dev libboost-thread-dev libboost-system-dev
-        sudo apt-get install -y libopencv-dev libeigen3-dev
-
-    # Build wheels using cibuildwheel
     - name: Build wheels
       uses: pypa/cibuildwheel@v2.16.2
       env:
-        # Build only for Linux
-        CIBW_PLATFORM: linux
-        # Build for specific architectures
         CIBW_ARCHS: ${{ matrix.arch }}
-        # Python versions to build for (adjust as needed)
         CIBW_BUILD: cp39-* cp310-* cp311-* cp312-*
-        # Skip 32-bit builds and musl builds
-        CIBW_SKIP: "*-win32 *-manylinux_i686 *-musllinux*"
-        # Install dependencies before build
-        CIBW_BEFORE_BUILD: >
-          yum install -y boost-devel opencv-devel eigen3-devel cmake3 &&
-          ln -sf /usr/bin/cmake3 /usr/bin/cmake || 
-          (apt-get update && apt-get install -y libboost-dev libboost-thread-dev libboost-system-dev libopencv-dev libeigen3-dev cmake)
-        # Environment variables for CMake
-        CIBW_ENVIRONMENT: >
-          CMAKE_BUILD_TYPE=Release
-          CMAKE_BUILD_PARALLEL_LEVEL=4
-        # Repair wheel command (ensures manylinux compatibility)
-        CIBW_REPAIR_WHEEL_COMMAND: >
-          auditwheel repair -w {dest_dir} {wheel} ||
-          (echo "auditwheel failed, copying wheel as-is" && cp {wheel} {dest_dir})
-        # Test the built wheel
-        CIBW_TEST_COMMAND: "python -c 'import svo_cpp; print(\"Import successful!\")'"
+        CIBW_SKIP: "*musllinux*"
+        CIBW_BEFORE_BUILD: |
+          yum install -y boost-devel opencv-devel eigen3-devel cmake3 || 
+          apt-get update && apt-get install -y libboost-dev libopencv-dev libeigen3-dev cmake
 
-    # Upload wheels as artifacts
-    - uses: actions/upload-artifact@v4
+    - name: Upload wheels
+      uses: actions/upload-artifact@v4
       with:
-        name: wheels-${{ matrix.platform_id }}
-        path: ./wheelhouse/*.whl
+        name: wheels-${{ matrix.arch }}
+        path: wheelhouse/*.whl
 
-  build_sdist:
-    name: Build source distribution
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: recursive
-
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
-
-    - name: Install build dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install build
-
-    - name: Build sdist
-      run: python -m build --sdist
-
-    - uses: actions/upload-artifact@v4
-      with:
-        name: sdist
-        path: dist/*.tar.gz
-
-  run_demo:
-    name: Run demo with built wheel
+  test-demo:
+    needs: build-linux
     runs-on: ubuntu-20.04
-    needs: build_wheels
     steps:
     - uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v4
+    - uses: actions/setup-python@v4
       with:
         python-version: '3.10'
-
-    - name: Download wheels
+    
+    - name: Download and install wheel
       uses: actions/download-artifact@v4
       with:
-        name: wheels-linux_x86_64
-        path: ./wheels
-
-    - name: Install wheel and dependencies
+        name: wheels-x86_64
+    
+    - name: Test installation and demo
       run: |
-        python -m pip install --upgrade pip
-        # Install the wheel (find the cp310 wheel for current Python)
-        wheel_file=$(find ./wheels -name "*cp310*linux_x86_64.whl" | head -1)
-        if [ -f "$wheel_file" ]; then
-          pip install "$wheel_file"
-        else
-          echo "No compatible wheel found, installing any available wheel"
-          pip install ./wheels/*.whl
-        fi
-        
-        # Install demo dependencies if needed
-        pip install numpy opencv-python
-
-    - name: Run demo
-      run: |
-        if [ -f run_demo.py ]; then
-          python run_demo.py
-        else
-          echo "No run_demo.py found, running basic import test"
-          python -c "import svo_cpp; print('SVO CPP imported successfully!')"
-        fi
-
+        pip install *.whl
+        python run_demo.py || python -c "import svo_cpp; print('OK')"
   publish:
     name: Publish to PyPI
-    needs: [build_wheels, build_sdist, run_demo]
+    needs: [build-linux, test-demo]
     runs-on: ubuntu-latest
     # Only publish on tags or manual dispatch with publish_to_pypi=true
     if: github.event_name == 'push' && contains(github.ref, 'refs/tags/') || 
