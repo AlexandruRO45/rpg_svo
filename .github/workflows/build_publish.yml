@@ -35,7 +35,7 @@ jobs:
 
       - name: Build wheel
         env:
-          CIBW_BEFORE_ALL_LINUX: bash .github/install_sys_deps.sh
+          CIBW_BEFORE_ALL_LINUX: bash .github/scripts/install_sys_deps.sh
           CIBW_PLATFORM: linux
           CIBW_ARCHS: ${{ matrix.arch }}
           CIBW_SKIP: "*-musllinux*"
