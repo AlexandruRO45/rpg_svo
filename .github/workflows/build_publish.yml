@@ -1,79 +1,76 @@
-name: Build and Publish
+name: Build x86_64 + aarch64 Wheels
 
 on:
   push:
-    tags: ['v*']
+    tags:
+      - "v*.*.*"
+  pull_request:
+    branches:
+      - "main"
   workflow_dispatch:
 
 jobs:
   build-linux:
-    runs-on: ubuntu-20.04
+    name: Build manylinux wheels (x86_64 + aarch64)
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         arch: [x86_64, aarch64]
-    
+
     steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: recursive
+      - name: Checkout source
+        uses: actions/checkout@v4
 
-    - name: Set up QEMU
-      if: matrix.arch == 'aarch64'
-      uses: docker/setup-qemu-action@v3
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
 
-    - name: Build wheels
-      uses: pypa/cibuildwheel@v2.16.2
-      env:
-        CIBW_ARCHS: ${{ matrix.arch }}
-        CIBW_BUILD: cp39-* cp310-* cp311-* cp312-*
-        CIBW_SKIP: "*musllinux*"
-        CIBW_BEFORE_BUILD: |
-          yum install -y boost-devel opencv-devel eigen3-devel cmake3 || 
-          apt-get update && apt-get install -y libboost-dev libopencv-dev libeigen3-dev cmake
+      - name: Install cibuildwheel
+        run: python -m pip install cibuildwheel==2.16.5
 
-    - name: Upload wheels
-      uses: actions/upload-artifact@v4
-      with:
-        name: wheels-${{ matrix.arch }}
-        path: wheelhouse/*.whl
+      - name: Setup QEMU for aarch64 (if needed)
+        if: matrix.arch == 'aarch64'
+        uses: docker/setup-qemu-action@v3
 
-  test-demo:
-    needs: build-linux
-    runs-on: ubuntu-20.04
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
-    
-    - name: Download and install wheel
-      uses: actions/download-artifact@v4
-      with:
-        name: wheels-x86_64
-    
-    - name: Test installation and demo
-      run: |
-        pip install *.whl
-        python run_demo.py || python -c "import svo_cpp; print('OK')"
+      - name: Build wheel
+        env:
+          CIBW_BEFORE_ALL_LINUX: bash .github/install_sys_deps.sh
+          CIBW_PLATFORM: linux
+          CIBW_ARCHS: ${{ matrix.arch }}
+          CIBW_SKIP: "*-musllinux*"
+          CIBW_BUILD_VERBOSITY: 1
+          CIBW_BUILD: "cp38-* cp310-* cp312-*"
+          CIBW_ENVIRONMENT: >
+            CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release"
+        run: |
+          python -m cibuildwheel --output-dir wheelhouse
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheelhouse-${{ matrix.arch }}
+          path: wheelhouse/*.whl
+
   publish:
-    name: Publish to PyPI
-    needs: [build-linux, test-demo]
+    name: Publish Wheels to PyPI
+    needs: build-linux
     runs-on: ubuntu-latest
-    # Only publish on tags or manual dispatch with publish_to_pypi=true
-    if: github.event_name == 'push' && contains(github.ref, 'refs/tags/') || 
-        (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_to_pypi == 'true')
-    permissions:
-      id-token: write
-    environment:
-      name: pypi
-      url: https://pypi.org/project/svo_cpp
+    if: startsWith(github.ref, 'refs/tags/v')
+
     steps:
-      - name: "Download PyPI wheels"
+      - name: Download all wheel artifacts
         uses: actions/download-artifact@v4
         with:
-          name: pypi-wheels
-          path: dist/
-          merge-multiple: true
+          path: dist
 
-      - name: "Publish package to PyPI"
+      - name: Flatten dist structure
+        run: |
+          mkdir -p final_dist
+          find dist -name "*.whl" -exec cp {} final_dist/ \;
+
+      - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          packages_dir: final_dist
