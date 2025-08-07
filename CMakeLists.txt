@@ -122,6 +122,8 @@ endif(HAVE_G2O)
 add_library(svo_static STATIC
   ${SOURCEFILES})
 
+target_compile_options(svo_static PRIVATE -Wno-maybe-uninitialized -Wno-dev -Wno-deprecated-declarations)
+
 # This is required because we are linking this static library into a shared one (the python module).
 set_property(TARGET svo_static PROPERTY POSITION_INDEPENDENT_CODE ON)
 
@@ -133,6 +135,13 @@ target_link_libraries(svo_static
 # Create the Python module
 # This module includes the binding code and links against the SVO static library
 pybind11_add_module(svo_cpp SHARED src/bindings.cpp)
+if(PYTHON_INCLUDE_DIR)
+  target_include_directories(svo_cpp PRIVATE ${PYTHON_INCLUDE_DIR})
+endif()
+
+if(NUMPY_INCLUDE_DIR)
+  target_include_directories(svo_cpp PRIVATE ${NUMPY_INCLUDE_DIR})
+endif()
 target_link_libraries(svo_cpp PRIVATE svo_static ${LINK_LIBS})
 # --- PYBIND11 INTEGRATION END ---
 ################################################################################
