@@ -4,9 +4,9 @@ on:
   push:
     tags:
       - "v*.*.*"
-  # pull_request:
-  #   branches:
-  #     - "main"
+  pull_request:
+    branches:
+      - "main"
   workflow_dispatch:
 
 jobs:
@@ -17,7 +17,7 @@ jobs:
         include:
           - os: ubuntu-latest
             arch: x86_64
-          - os: ubuntu-24.04-arm64
+          - os: ubuntu-24.04-arm
             arch: aarch64
 
     runs-on: ${{ matrix.os }}
