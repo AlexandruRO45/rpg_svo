@@ -138,7 +138,7 @@ target_link_libraries(svo_static
 # --- PYBIND11 INTEGRATION START ---
 # Create the Python module
 # This module includes the binding code and links against the SVO static library
-pybind11_add_module(svo_cpp SHARED src/bindings.cpp)
+pybind11_add_module(svo_cpp SHARED src/bindings.cpp src/NDArrayConverter.cpp)
 if(PYTHON_INCLUDE_DIR)
   target_include_directories(svo_cpp PRIVATE ${PYTHON_INCLUDE_DIR})
 endif()
