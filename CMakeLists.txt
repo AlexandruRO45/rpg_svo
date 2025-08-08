@@ -35,26 +35,24 @@ endif()
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Start with common, cross-platform flags
-set(CMAKE_CXX_FLAGS "-Wall -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unknown-pragmas")
 
 # Add platform-specific flags for Linux only
-if(UNIX AND NOT APPLE)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_LINUX -D_REENTRANT -march=native")
-  if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64")
-    # AArch64 (64-bit ARM)
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=armv8-a+simd")
-  elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "arm")
-    # ARMv7 (32-bit ARM)
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=armv7-a -mfpu=neon")
-  elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|amd64")
-    # x86-specific SSE flags for Linux
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mmmx -msse -msse2 -msse3 -mssse3")
-  endif()
+set(ENV{ARM_ARCHITECTURE} aarch64)
+# Set build flags, set ARM_ARCHITECTURE environment variable on Odroid
+# Set build flags. Set IS_ARM on odroid board as environment variable
+set(CMAKE_CXX_FLAGS "-Wall -D_LINUX -D_REENTRANT -march=native -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unknown-pragmas")
+if(DEFINED ENV{ARM_ARCHITECTURE})
+  IF("$ENV{ARM_ARCHITECTURE}" STREQUAL "aarch64")
+		SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=native")
+        ELSEIF("$ENV{ARM_ARCHITECTURE}" STREQUAL "armv8")
+                SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=native")
+	ELSE()
+		SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -mfpu=neon -march=armv7-a")
+	ENDIF()	
+else()
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mmmx -msse -msse -msse2 -msse3 -mssse3")
 endif()
-
-# Release flags (note: removed '-fsee' as it's likely a typo and not a standard flag)
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3 -fomit-frame-pointer -fno-signed-zeros -fno-math-errno -funroll-loops")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3 -fsee -fomit-frame-pointer -fno-signed-zeros -fno-math-errno -funroll-loops")
 
 # --- PYBIND11 INTEGRATION START ---
 add_subdirectory(extra/pybind11)
@@ -154,8 +152,8 @@ target_link_libraries(svo_cpp PRIVATE svo_static ${LINK_LIBS})
 # add_executable(test_feature_align test/test_feature_alignment.cpp)
 # target_link_libraries(test_feature_align svo_static)
 
-add_executable(test_pipeline test/test_pipeline.cpp)
-target_link_libraries(test_pipeline svo_static)
+# add_executable(test_pipeline test/test_pipeline.cpp)
+# target_link_libraries(test_pipeline svo_static)
 
 # add_executable(test_matcher test/test_matcher.cpp)
 # target_link_libraries(test_matcher svo_static)
