@@ -5,7 +5,7 @@ import sys
 
 # (This import block remains the same)
 try:
-    from lib import svo_cpp
+    from svo_cpp import svo_cpp
 except ImportError:
     try:
         project_root = os.path.dirname(os.path.abspath(__file__))
