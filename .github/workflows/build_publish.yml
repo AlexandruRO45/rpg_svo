@@ -60,17 +60,18 @@ jobs:
         with:
           name: wheelhouse-${{ matrix.arch }}
           path: wheelhouse/*.whl
-
-  publish:
-    name: Publish Wheels to PyPI
+  publish_to_pypi:
+    name: "Publish to PyPI"
     needs: build-wheels
-    runs-on: ubuntu-latest
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
     permissions:
       id-token: write
-
+    environment:
+      name: pypi
+      url: https://pypi.org/project/svo_cpp
     steps:
-      - name: Download all wheel artifacts
+      - name: "Download PyPI wheels"
         uses: actions/download-artifact@v4
         with:
           path: dist/
