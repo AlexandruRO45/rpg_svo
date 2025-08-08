@@ -13,6 +13,7 @@
 #include <vikit/abstract_camera.h>
 #include <vikit/pinhole_camera.h>
 #include <sophus/se3.hpp>
+#include <svo/NDArrayConverter.h>
 
 namespace py = pybind11;
 
@@ -20,37 +21,37 @@ PYBIND11_DECLARE_HOLDER_TYPE(T, boost::shared_ptr<T>);
 
 // Custom type caster to handle the conversion between
 // cv::Mat and numpy arrays.
-namespace pybind11 { namespace detail {
-template <> struct type_caster<cv::Mat> {
-    public:
-        PYBIND11_TYPE_CASTER(cv::Mat, _("numpy.ndarray"));
+// namespace pybind11 { namespace detail {
+// template <> struct type_caster<cv::Mat> {
+//     public:
+//         PYBIND11_TYPE_CASTER(cv::Mat, _("numpy.ndarray"));
 
-        bool load(handle src, bool) {
-            if (!py::isinstance<py::array>(src))
-                return false;
+//         bool load(handle src, bool) {
+//             if (!py::isinstance<py::array>(src))
+//                 return false;
 
-            auto buf = py::array_t<uint8_t, py::array::c_style | py::array::forcecast>::ensure(src);
-            if (!buf)
-                return false;
+//             auto buf = py::array_t<uint8_t, py::array::c_style | py::array::forcecast>::ensure(src);
+//             if (!buf)
+//                 return false;
             
-            // Create a temporary Mat header that points to the numpy array's data
-            cv::Mat temp_mat(buf.shape(0), buf.shape(1), CV_8U, (void*)buf.data());
-            value = temp_mat.clone();
-            return true;
-        }
+//             // Create a temporary Mat header that points to the numpy array's data
+//             cv::Mat temp_mat(buf.shape(0), buf.shape(1), CV_8U, (void*)buf.data());
+//             value = temp_mat.clone();
+//             return true;
+//         }
 
-        static handle cast(const cv::Mat &m, return_value_policy, handle defval) {
-             return py::array(py::buffer_info(
-                m.data,
-                sizeof(unsigned char),
-                py::format_descriptor<unsigned char>::format(),
-                2,
-                { (size_t) m.rows, (size_t) m.cols },
-                { (size_t) m.step[0], (size_t) m.step[1] }
-             )).release();
-        }
-};
-}} // namespace pybind11::detail
+//         static handle cast(const cv::Mat &m, return_value_policy, handle defval) {
+//              return py::array(py::buffer_info(
+//                 m.data,
+//                 sizeof(unsigned char),
+//                 py::format_descriptor<unsigned char>::format(),
+//                 2,
+//                 { (size_t) m.rows, (size_t) m.cols },
+//                 { (size_t) m.step[0], (size_t) m.step[1] }
+//              )).release();
+//         }
+// };
+// }} // namespace pybind11::detail
 
 
 // Main function to define the Python module
@@ -61,6 +62,7 @@ PYBIND11_MODULE(svo_cpp, m) {
     // 1. Bind Core Data Types (Pose, Camera)
     // =================================================================================
 
+    NDArrayConverter::init_numpy();
     py::class_<Sophus::SE3d>(m, "SE3d")
         .def(py::init<>())
         .def("translation", static_cast<const Eigen::Vector3d& (Sophus::SE3d::*)() const>(&Sophus::SE3d::translation))
