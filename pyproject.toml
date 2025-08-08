@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=42", "wheel", "cmake>=3.12", "numpy", "opencv-python", "pybind11>=2.11"]
+requires = ["setuptools>=42", "wheel", "cmake>=3.12", "numpy", "opencv-python"]
 build-backend = "setuptools.build_meta"
 
 # PEP 621 Project metadata
@@ -8,7 +8,8 @@ name = "svo_cpp"
 version = "1.0.0"
 description = "Semi Direct Visual Odometry with python bindings"
 maintainers = [{ name = "Alex S.", email = "savaalexandru562@gmail.com" }]
-license = { file = "LICENSE" } # Points to your license file
+license = { file = "LICENSE" }
+readme = "README.md"
 requires-python = ">=3.8"
 classifiers = [
     'Intended Audience :: Developers',
@@ -16,35 +17,22 @@ classifiers = [
     'Programming Language :: C++',
     'Programming Language :: Python :: 3',
     'Programming Language :: Python :: 3 :: Only',
-    # ... other classifiers
+    'Programming Language :: Python :: 3.8',
+    'Programming Language :: Python :: 3.9',
+    'Programming Language :: Python :: 3.10',
+    'Programming Language :: Python :: 3.11',
+    'Programming Language :: Python :: 3.12',
+    'Operating System :: POSIX :: Linux',
+    'Topic :: Scientific/Engineering :: Image Processing',
+    'Topic :: Software Development :: Libraries :: Python Modules',
 ]
-dependencies = ["numpy", "opencv-python"]
+dependencies = ["numpy>=1.19.0", "opencv-python>=4.5.0"]
 
 [project.optional-dependencies]
 test = ["pytest>=6.0", "pyyaml>=5.4"]
+dev = ["pytest>=6.0", "pyyaml>=5.4", "build", "twine"]
 
 [project.urls]
 "Bug Tracker" = "https://github.com/AlexandruRO45/rpg_svo/issues"
 "Source" = "https://github.com/AlexandruRO45/rpg_svo/"
-
-
-# -------------------------------------------------------------------
-# This section configures the cibuildwheel tool for your project.
-# -------------------------------------------------------------------
-[tool.cibuildwheel]
-# This command runs inside the manylinux container before the build starts.
-# It uses the 'yum' package manager to install the required C++ libraries.
-# build-essential is already included in the manylinux images.
-before-all = "yum install -y eigen3-devel opencv-devel boost-serialization-devel"
-
-# This explicitly tells cibuildwheel to only attempt Linux builds.
-# While the workflow file also ensures this, it's good practice to be clear.
-build = "*-manylinux_*"
-
-# This is the command to run your tests after each wheel is built.
-# {project} is a placeholder for your project's root directory.
-# test-command = "pytest {project}/tests"
-
-# Python packages required to run the tests.
-# It will use the 'test' group from your optional-dependencies.
-# test-requires = "pytest"
+"Documentation" = "https://github.com/AlexandruRO45/rpg_svo/"

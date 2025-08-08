@@ -37,7 +37,9 @@ class CMakeBuild(build_ext):
             f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY={extdir}{os.sep}",
             f"-DPYTHON_EXECUTABLE={sys.executable}",
             f"-DCMAKE_BUILD_TYPE={build_type}",
-            f"-DCMAKE_CXX_FLAGS=-I{numpy_include_dir} -I{python_include_dir}", 
+            f"-DPYTHON_INCLUDE_DIR={python_include_dir}",
+            f"-DNUMPY_INCLUDE_DIR={numpy_include_dir}",
+            # f"-DCMAKE_CXX_FLAGS=-I{numpy_include_dir} -I{python_include_dir}", 
             # --- Debug Use Only ---
             # f"-DCMAKE_CXX_FLAGS={os.environ.get('CMAKE_CXX_FLAGS', '')} -fsanitize=address -g -I{numpy_include_dir}",   
             # f"-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address",

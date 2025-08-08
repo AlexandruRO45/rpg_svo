@@ -1,98 +1,90 @@
-# .github/workflows/build_publish.yml
-name: Build and Publish
+name: Build x86_64 + aarch64 Wheels
 
 on:
   push:
     tags:
       - "v*.*.*"
+    branches:
+      - "main"
   pull_request:
-    branches: ["main"]
+    branches:
+      - "develop"
   workflow_dispatch:
 
 jobs:
-  # JOB 1: Build portable manylinux wheels for PyPI using cibuildwheel
-  build_manylinux_wheels:
-    name: "Build manylinux Wheels"
-    runs-on: ubuntu-latest
-    steps:
-      - name: "Checkout Repository and Submodules"
-        uses: actions/checkout@v4
-        with:
-          submodules: "recursive"
-
-      - name: "Build Wheels with cibuildwheel"
-        uses: pypa/cibuildwheel@v2.19.0
-
-      - name: "Store PyPI wheels"
-        uses: actions/upload-artifact@v4
-        with:
-          name: pypi-wheels
-          path: wheelhouse/*.whl
-
-  # JOB 2: Build a native wheel specifically for Ubuntu (optional, good for specific releases)
-  build_ubuntu_wheel:
-    name: "Build Native Ubuntu Wheel for Python ${{ matrix.python-version }}"
-    runs-on: ubuntu-latest
+  build-wheels:
+    name: Build wheel on ${{ matrix.os }} (${{ matrix.arch }})
     strategy:
-      fail-fast: false
       matrix:
-        python-version: ["3.8", "3.10", "3.12"]
+        include:
+          - os: ubuntu-latest
+            arch: x86_64
+          - os: ubuntu-24.04-arm
+            arch: aarch64
+
+    runs-on: ${{ matrix.os }}
 
     steps:
-      - name: "Checkout Repository and Submodules"
+      - name: Checkout source
         uses: actions/checkout@v4
         with:
-          submodules: "recursive"
+          submodules: recursive
 
-      - name: "Set up Python ${{ matrix.python-version }}"
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: "Install Ubuntu System Dependencies"
+      - name: Install Python and cibuildwheel
         run: |
-          # NOTE: You need to create an 'apt-dependencies.txt' file in your
-          # repository root with one package name per line, e.g.:
-          # build-essential
-          # cmake
-          # libeigen3-dev
-          # libopencv-dev
-          # libboost-serialization-dev
-          sudo apt-get update
-          sudo xargs -a apt-dependencies.txt apt-get install -y --no-install-recommends
+          python3 -m pip install --upgrade pip
+          pip install cibuildwheel==2.16.5
 
-      - name: "Install Python Build Tools"
+      - name: Show architecture info
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install build
+          echo "uname -m: $(uname -m)"
+          echo "arch: $(arch)"
+          lscpu | grep Architecture
 
-      - name: "Build wheel with python-build"
-        run: python -m build --wheel --outdir wheelhouse_artifact .
 
-      - name: "Store Ubuntu wheel"
+      - name: Build wheels
+        env:
+          CIBW_BEFORE_ALL_LINUX: bash .github/scripts/install_sys_deps.sh
+          CIBW_PLATFORM: linux
+          CIBW_ARCHS: ${{ matrix.arch }}
+          CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
+          CIBW_MANYLINUX_AARCH64_IMAGE: manylinux_2_28
+          CIBW_SKIP: "*-musllinux*"
+          CIBW_BUILD_VERBOSITY: 1
+          CIBW_BUILD: "cp38-* cp39-* cp310-* cp311-* cp312-*"
+          CIBW_ENVIRONMENT: >
+            CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release"
+        run: |
+          python -m cibuildwheel --output-dir wheelhouse
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ubuntu-native-wheel-python-${{ matrix.python-version }}
-          path: wheelhouse_artifact/*.whl
-
-  # JOB 3: Publish to PyPI (only runs on new version tags)
+          name: wheelhouse-${{ matrix.arch }}
+          path: wheelhouse/*.whl
   publish_to_pypi:
     name: "Publish to PyPI"
-    needs: build_manylinux_wheels
+    needs: build-wheels
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
-      # This permission is required for trusted publishing
       id-token: write
     environment:
       name: pypi
-      url: https://pypi.org/p/svo_cpp # URL to your package on PyPI
+      url: https://pypi.org/project/svo_cpp
     steps:
       - name: "Download PyPI wheels"
         uses: actions/download-artifact@v4
         with:
-          name: pypi-wheels
           path: dist/
 
-      - name: "Publish package to PyPI"
+      - name: Flatten dist structure
+        run: |
+          mkdir -p final_dist
+          find dist/ -name "*.whl" -exec cp {} final_dist/ \;
+
+      - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          packages-dir: final_dist/

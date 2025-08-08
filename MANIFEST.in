@@ -1,0 +1,10 @@
+include README.md
+include LICENSE
+include apt-dependencies.txt
+include CMakeLists.txt
+recursive-include include *.h *.hpp
+recursive-include src *.cpp *.c
+recursive-include extra *
+recursive-include CMakeModules *.cmake
+exclude test/*
+exclude doc/*
