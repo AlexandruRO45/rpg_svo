@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 # PEP 621 Project metadata
 [project]
 name = "svo_cpp"
-version = "1.0.0"
+version = "1.5.0"
 description = "Semi Direct Visual Odometry with python bindings"
 maintainers = [{ name = "Alex S.", email = "savaalexandru562@gmail.com" }]
 license = { file = "LICENSE" }

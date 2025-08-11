@@ -86,16 +86,55 @@ PYBIND11_MODULE(svo_cpp, m) {
     
     // Expose a function to set SVO's global config singleton from a Python dict
     m.def("set_svo_config", [](const py::dict& config_dict) {
+    // This function now exposes ALL parameters from svo::Config to Python. USE IT WITH CAUTION
         if (config_dict.contains("n_pyr_levels"))
             svo::Config::nPyrLevels() = config_dict["n_pyr_levels"].cast<size_t>();
-        if (config_dict.contains("kfselect_mindist"))
-            svo::Config::kfSelectMinDist() = config_dict["kfselect_mindist"].cast<double>();
-        if (config_dict.contains("max_fts"))
-            svo::Config::maxFts() = config_dict["max_fts"].cast<size_t>();
+        if (config_dict.contains("use_imu"))
+            svo::Config::useImu() = config_dict["use_imu"].cast<bool>();
+        if (config_dict.contains("core_n_kfs"))
+            svo::Config::coreNKfs() = config_dict["core_n_kfs"].cast<size_t>();
+        if (config_dict.contains("map_scale"))
+            svo::Config::mapScale() = config_dict["map_scale"].cast<double>();
+        if (config_dict.contains("grid_size"))
+            svo::Config::gridSize() = config_dict["grid_size"].cast<size_t>();
+        if (config_dict.contains("init_min_disparity"))
+            svo::Config::initMinDisparity() = config_dict["init_min_disparity"].cast<double>();
+        if (config_dict.contains("init_min_tracked"))
+            svo::Config::initMinTracked() = config_dict["init_min_tracked"].cast<size_t>();
+        if (config_dict.contains("init_min_inliers"))
+            svo::Config::initMinInliers() = config_dict["init_min_inliers"].cast<size_t>();
+        if (config_dict.contains("klt_max_level"))
+            svo::Config::kltMaxLevel() = config_dict["klt_max_level"].cast<size_t>();
+        if (config_dict.contains("klt_min_level"))
+            svo::Config::kltMinLevel() = config_dict["klt_min_level"].cast<size_t>();
         if (config_dict.contains("reproj_thresh"))
             svo::Config::reprojThresh() = config_dict["reproj_thresh"].cast<double>();
         if (config_dict.contains("poseoptim_thresh"))
             svo::Config::poseOptimThresh() = config_dict["poseoptim_thresh"].cast<double>();
+        if (config_dict.contains("poseoptim_num_iter"))
+            svo::Config::poseOptimNumIter() = config_dict["poseoptim_num_iter"].cast<size_t>();
+        if (config_dict.contains("structureoptim_max_pts"))
+            svo::Config::structureOptimMaxPts() = config_dict["structureoptim_max_pts"].cast<size_t>();
+        if (config_dict.contains("structureoptim_num_iter"))
+            svo::Config::structureOptimNumIter() = config_dict["structureoptim_num_iter"].cast<size_t>();
+        if (config_dict.contains("loba_thresh"))
+            svo::Config::lobaThresh() = config_dict["loba_thresh"].cast<double>();
+        if (config_dict.contains("loba_robust_huber_width"))
+            svo::Config::lobaRobustHuberWidth() = config_dict["loba_robust_huber_width"].cast<double>();
+        if (config_dict.contains("loba_num_iter"))
+            svo::Config::lobaNumIter() = config_dict["loba_num_iter"].cast<size_t>();
+        if (config_dict.contains("kfselect_mindist"))
+            svo::Config::kfSelectMinDist() = config_dict["kfselect_mindist"].cast<double>();
+        if (config_dict.contains("triang_min_corner_score"))
+            svo::Config::triangMinCornerScore() = config_dict["triang_min_corner_score"].cast<double>();
+        if (config_dict.contains("subpix_n_iter"))
+            svo::Config::subpixNIter() = config_dict["subpix_n_iter"].cast<size_t>();
+        if (config_dict.contains("max_n_kfs"))
+            svo::Config::maxNKfs() = config_dict["max_n_kfs"].cast<size_t>();
+        if (config_dict.contains("img_imu_delay"))
+            svo::Config::imgImuDelay() = config_dict["img_imu_delay"].cast<double>();
+        if (config_dict.contains("max_fts"))
+            svo::Config::maxFts() = config_dict["max_fts"].cast<size_t>();
         if (config_dict.contains("quality_min_fts"))
             svo::Config::qualityMinFts() = config_dict["quality_min_fts"].cast<size_t>();
         if (config_dict.contains("quality_max_drop_fts"))

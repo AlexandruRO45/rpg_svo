@@ -42,28 +42,61 @@ class BenchmarkNode:
         height, width = first_img.shape[:2]
         print(f"Detected image size: {width}x{height}")
 
-        # Define a dictionary with default parameters for PC
+        # Define a dictionary with default parameters
         default_config = {
+            "n_pyr_levels": 3,
+            "use_imu": False,
+            "core_n_kfs": 3,
+            "map_scale": 1.0,
+            "grid_size": 25,
+            "init_min_disparity": 50.0,
+            "init_min_tracked": 50,
+            "init_min_inliers": 40,
+            "klt_max_level": 4,
+            "klt_min_level": 2,
+            "reproj_thresh": 2.0,
+            "poseoptim_thresh": 2.0,
+            "poseoptim_num_iter": 10,
+            "structureoptim_max_pts": 20,
+            "structureoptim_num_iter": 5,
+            "loba_thresh": 2.0,
+            "loba_robust_huber_width": 1.0,
+            "loba_num_iter": 0,
+            "kfselect_mindist": 0.12,
+            "triang_min_corner_score": 20.0,
+            "subpix_n_iter": 10,
+            "max_n_kfs": 0,
+            "img_imu_delay": 0.0,
             "max_fts": 120,
             "quality_min_fts": 50,
-            "quality_max_drop_fts": 40,
-            "reproj_thresh": 2.0,
-            "poseoptim_thresh": 2.0
+            "quality_max_drop_fts": 40
         }
 
-        # Define a dictionary with more relaxed parameters for ARM/Jetson
-        jetson_config = {
-            "max_fts": 120,
-            "quality_min_fts": 35,          # Lowered requirement
-            "quality_max_drop_fts": 50,     # Allow more features to be dropped
-            "reproj_thresh": 2.5,           # Slightly larger pixel error tolerance
-            "poseoptim_thresh": 2.5         # Slightly larger pixel error tolerance
-        }
+        # Create your Jetson-specific config by copying the default and modifying it.
+        arm64_config = default_config.copy()
+        arm64_config.update({
+            # # --- Robustness Parameters ---
+            # "reproj_thresh": 4.0,
+            # "poseoptim_thresh": 4.0,
+            # "quality_min_fts": 30,
+            # "quality_max_drop_fts": 60,
+            
+            # # --- Drone Motion Parameters ---
+            # "grid_size": 30,
+            
+            # # --- Initialization Parameters ---
+            # "init_min_disparity": 25.0,
+            
+            # # --- Performance Parameters ---
+            # "max_fts": 100,
+            # "poseoptim_num_iter": 8,
+            # "subpix_n_iter": 5
+        })
 
         # Check the machine's architecture and apply the correct config
         if platform.machine() == "aarch64":
             print("Applying JETSON-specific SVO configuration.")
-            set_svo_config(jetson_config)
+            set_svo_config(arm64_config)
         else:
             print("Applying default PC SVO configuration.")
             set_svo_config(default_config)
@@ -91,12 +124,6 @@ class BenchmarkNode:
             if img is None:
                 print(f"Error: Could not load image at {img_path}")
                 continue
-            # --- VVV ADD THESE DEBUG LINES VVV ---
-            print("--- DEBUG INFO ---")
-            print(f"Image Shape: {img.shape}")
-            print(f"Image Dtype: {img.dtype}")
-            print("------------------")
-            # --- ^^^ ADD THESE DEBUG LINES ^^^ ---
             self.vo.addImage(img, 0.01 * img_id)
             
             last_frame = self.vo.lastFrame()
