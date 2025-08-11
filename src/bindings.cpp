@@ -86,18 +86,20 @@ PYBIND11_MODULE(svo_cpp, m) {
     
     // Expose a function to set SVO's global config singleton from a Python dict
     m.def("set_svo_config", [](const py::dict& config_dict) {
-        if (config_dict.contains("n_pyr_levels")) {
+        if (config_dict.contains("n_pyr_levels"))
             svo::Config::nPyrLevels() = config_dict["n_pyr_levels"].cast<size_t>();
-        }
-        if (config_dict.contains("kfselect_mindist")) {
+        if (config_dict.contains("kfselect_mindist"))
             svo::Config::kfSelectMinDist() = config_dict["kfselect_mindist"].cast<double>();
-        }
-        if (config_dict.contains("reproj_thresh")) {
-            svo::Config::reprojThresh() = config_dict["reproj_thresh"].cast<double>();
-        }
-        if (config_dict.contains("max_fts")) {
+        if (config_dict.contains("max_fts"))
             svo::Config::maxFts() = config_dict["max_fts"].cast<size_t>();
-        }
+        if (config_dict.contains("reproj_thresh"))
+            svo::Config::reprojThresh() = config_dict["reproj_thresh"].cast<double>();
+        if (config_dict.contains("poseoptim_thresh"))
+            svo::Config::poseOptimThresh() = config_dict["poseoptim_thresh"].cast<double>();
+        if (config_dict.contains("quality_min_fts"))
+            svo::Config::qualityMinFts() = config_dict["quality_min_fts"].cast<size_t>();
+        if (config_dict.contains("quality_max_drop_fts"))
+            svo::Config::qualityMaxFtsDrop() = config_dict["quality_max_drop_fts"].cast<int>();
     }, "Set SVO parameters from a Python dictionary.");
 
     // =================================================================================
@@ -119,7 +121,7 @@ PYBIND11_MODULE(svo_cpp, m) {
 
     // This is the main class we will interact with from Python
     py::class_<svo::FrameHandlerMono>(m, "SVO")
-        .def(py::init<vk::AbstractCamera*>(), "Constructor takes a camera model.")
+        .def(py::init<vk::AbstractCamera*>(), "Constructor takes a camera model.",py::arg("camera"), py::keep_alive<1, 2>())
         .def("start", &svo::FrameHandlerMono::start, "Start the VO pipeline.")
         .def("reset", &svo::FrameHandlerMono::reset, "Reset the system to its initial state.")
         .def("addImage", &svo::FrameHandlerMono::addImage,

@@ -2,19 +2,20 @@ import cv2
 import os
 import argparse
 import sys
+import platform
 
-# try:
-from svo_cpp import *
-# except ImportError:
-#     try:
-#         project_root = os.path.dirname(os.path.abspath(__file__))
-#         lib_path = os.path.join(project_root, 'lib')
-#         sys.path.insert(0, lib_path)
-#         import svo_cpp
-#     except ImportError:
-#         print("Error: Could not import the compiled SVO module.")
-#         print("Please make sure you have compiled the project and are running this script from the project root.")
-#         exit(1)
+try:
+    from svo_cpp import *
+except ImportError:
+    try:
+        project_root = os.path.dirname(os.path.abspath(__file__))
+        lib_path = os.path.join(project_root, 'lib')
+        sys.path.insert(0, lib_path)
+        import svo_cpp
+    except ImportError:
+        print("Error: Could not import the compiled SVO module.")
+        print("Please make sure you have compiled the project and are running this script from the project root.")
+        exit(1)
 
 
 class BenchmarkNode:
@@ -40,6 +41,32 @@ class BenchmarkNode:
         
         height, width = first_img.shape[:2]
         print(f"Detected image size: {width}x{height}")
+
+        # Define a dictionary with default parameters for PC
+        default_config = {
+            "max_fts": 120,
+            "quality_min_fts": 50,
+            "quality_max_drop_fts": 40,
+            "reproj_thresh": 2.0,
+            "poseoptim_thresh": 2.0
+        }
+
+        # Define a dictionary with more relaxed parameters for ARM/Jetson
+        jetson_config = {
+            "max_fts": 120,
+            "quality_min_fts": 35,          # Lowered requirement
+            "quality_max_drop_fts": 50,     # Allow more features to be dropped
+            "reproj_thresh": 2.5,           # Slightly larger pixel error tolerance
+            "poseoptim_thresh": 2.5         # Slightly larger pixel error tolerance
+        }
+
+        # Check the machine's architecture and apply the correct config
+        if platform.machine() == "aarch64":
+            print("Applying JETSON-specific SVO configuration.")
+            set_svo_config(jetson_config)
+        else:
+            print("Applying default PC SVO configuration.")
+            set_svo_config(default_config)
 
         print("Initializing camera and SVO...")
         cam = PinholeCamera(width, height, 315.5, 315.5, width / 2.0, height / 2.0)
