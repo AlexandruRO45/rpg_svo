@@ -1,144 +1,102 @@
-################################################################################
-# user build settings
-
-set(TRACE TRUE)
-set(HAVE_G2O FALSE)
-set(USE_ROS FALSE)
-set(DEBUG_OUTPUT TRUE) # Only relevant if build without ROS
-
-################################################################################
-
-set(PROJECT_NAME svo)
 cmake_minimum_required(VERSION 3.14)
-project(${PROJECT_NAME})
-set(CMAKE_BUILD_TYPE Release) # Release, RelWithDebInfo, Debug
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/CMakeModules/")
+project(svo)
 
-# Required so that svo_ros vo can find libfast.so
-set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-
-# Set definitions
-if(TRACE)
-  add_definitions(-DSVO_TRACE)
-endif()
-if(HAVE_G2O)
-  add_definitions(-DUSE_BUNDLE_ADJUSTMENT)
-endif()
-if(USE_ROS)
-  add_definitions(-DSVO_USE_ROS)
-endif()
-if(DEBUG_OUTPUT)
-  add_definitions(-DSVO_DEBUG_OUTPUT)
-endif()
-
-# Set build flags.
+set(CMAKE_BUILD_TYPE Release)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Start with common, cross-platform flags
-set(CMAKE_CXX_FLAGS "-Wall -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unknown-pragmas")
+# --- User Build Options ---
+option(SVO_TRACE "Enable tracing for performance monitoring" ON)
+option(SVO_HAVE_G2O "Enable g2o for bundle adjustment" OFF)
+option(SVO_USE_ROS "Enable ROS integration" OFF)
+option(SVO_DEBUG_OUTPUT "Enable debug output (if not using ROS)" ON)
 
-# Add platform-specific flags for Linux only
-if(UNIX AND NOT APPLE)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_LINUX -D_REENTRANT -march=native")
-  if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64")
-    # AArch64 (64-bit ARM)
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=armv8-a+simd")
-  elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "arm")
-    # ARMv7 (32-bit ARM)
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=armv7-a -mfpu=neon")
-  elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|amd64")
-    # x86-specific SSE flags for Linux
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mmmx -msse -msse2 -msse3 -mssse3")
-  endif()
-endif()
-
-# Release flags (note: removed '-fsee' as it's likely a typo and not a standard flag)
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -O3 -fomit-frame-pointer -fno-signed-zeros -fno-math-errno -funroll-loops")
-
-# --- PYBIND11 INTEGRATION START ---
-add_subdirectory(extra/pybind11)
-
-# Find pybind11 and other dependencies (INSTALLED ON OS)
-# find_package(pybind11 CONFIG REQUIRED)
-# message(STATUS "Found pybind11 v${pybind11_VERSION}: ${pybind11_INCLUDE_DIRS}")
-# --- PYBIND11 INTEGRATION END ---
-
+# --- Find/Add Dependencies ---
 find_package(Boost REQUIRED COMPONENTS thread system)
-# find_package(Eigen3 REQUIRED)
 find_package(OpenCV REQUIRED)
 
-# Add the subdirectories for our local dependencies
-# add_subdirectory(extra/vikit_common/Sophus)
+add_subdirectory(extra/pybind11)
 add_subdirectory(extra/fast_neon)
 add_subdirectory(extra/vikit_common)
-# add_subdirectory(extra/vikit_common/eigen)
 
-set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
-set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
-
-include_directories(
-  include
-  ${pybind11_INCLUDE_DIRS}
-  # ${EIGEN3_INCLUDE_DIR}
-  extra/fast_neon/include
-  extra/vikit_common/include
+# --- Define SVO Library Source Files ---
+set(SVO_SOURCES
+    src/config.cpp
+    src/depth_filter.cpp
+    src/feature_alignment.cpp
+    src/feature_detection.cpp
+    src/frame.cpp
+    src/frame_handler_mono.cpp
+    src/frame_handler_base.cpp
+    src/initialization.cpp
+    src/map.cpp
+    src/matcher.cpp
+    src/point.cpp
+    src/pose_optimizer.cpp
+    src/reprojector.cpp
+    src/sparse_img_align.cpp
 )
 
-# Set link libraries
-list(APPEND LINK_LIBS
-  ${Boost_LIBRARIES}
-  fast # Link against the target from the subdirectory
-  ${OpenCV_LIBS}
-  vikit_common # Link against the target from the subdirectory
-)
-
-# Set sourcefiles
-list(APPEND SOURCEFILES
-  src/config.cpp
-  src/depth_filter.cpp
-  src/feature_alignment.cpp
-  src/feature_detection.cpp
-  src/frame.cpp
-  src/frame_handler_mono.cpp
-  src/frame_handler_base.cpp
-  src/initialization.cpp
-  src/map.cpp
-  src/matcher.cpp
-  src/point.cpp
-  src/pose_optimizer.cpp
-  src/reprojector.cpp
-  src/sparse_img_align.cpp)
-
-# Add g2o if available
-if(HAVE_G2O)
-  find_package(G2O REQUIRED)
-  include_directories(
-    ${G2O_INCLUDE_DIR}
-    /usr/include/suitesparse) # for cholmod
-  list(APPEND LINK_LIBS
-    ${G2O_CORE_LIBRARY} ${G2O_STUFF_LIBRARY} ${G2O_SOLVER_CHOLMOD} ${G2O_SOLVER_CSPARSE} ${G2O_SOLVER_DENSE}
-    ${G2O_SOLVER_PCG} ${G2O_TYPES_SBA} cholmod cxsparse)
-  list(APPEND SOURCEFILES src/bundle_adjustment.cpp)
-endif(HAVE_G2O)
-
-# Create svo library (as an object library to be used by other targets)
-add_library(svo_static STATIC
-  ${SOURCEFILES})
-
-target_compile_options(svo_static PRIVATE -Wno-maybe-uninitialized -Wno-dev -Wno-deprecated-declarations)
-
-# This is required because we are linking this static library into a shared one (the python module).
+# --- Create the Core Static Library Target ---
+add_library(svo_static STATIC ${SVO_SOURCES})
 set_property(TARGET svo_static PROPERTY POSITION_INDEPENDENT_CODE ON)
 
-target_link_libraries(svo_static
-  ${LINK_LIBS}
+# --- Apply Options, Flags, and Includes to the Static Library ---
+
+# Add preprocessor definitions based on user options
+if(SVO_TRACE)
+    target_compile_definitions(svo_static PRIVATE SVO_TRACE)
+endif()
+if(SVO_USE_ROS)
+    target_compile_definitions(svo_static PRIVATE SVO_USE_ROS)
+endif()
+if(SVO_DEBUG_OUTPUT)
+    target_compile_definitions(svo_static PRIVATE SVO_DEBUG_OUTPUT)
+endif()
+
+# Set compiler flags for the static library
+set(BASE_CXX_FLAGS "-Wall;-D_LINUX;-D_REENTRANT;-Wno-unused-variable;-Wno-maybe-uninitialized;-Wno-deprecated-declarations")
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|armv8")
+    set(ARCH_FLAGS "-O3;-march=native")
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "arm")
+    set(ARCH_FLAGS "-O3;-mfpu=neon;-march=armv7-a")
+else() # x86_64
+    set(ARCH_FLAGS "-O3;-mmmx;-msse;-msse2;-msse3;-mssse3")
+endif()
+
+# Apply all flags to our library target, using correct generator expression syntax
+target_compile_options(svo_static PRIVATE
+    ${BASE_CXX_FLAGS}
+    ${ARCH_FLAGS}
+    "$<IF:$<CONFIG:Release>,-fsee;-fomit-frame-pointer;-fno-signed-zeros;-fno-math-errno;-funroll-loops,\>"
 )
 
-# --- PYBIND11 INTEGRATION START ---
-# Create the Python module
-# This module includes the binding code and links against the SVO static library
-pybind11_add_module(svo_cpp SHARED src/bindings.cpp)
+# Set include directories for the static library
+target_include_directories(svo_static PUBLIC
+    # Its own headers need to be public for the python module to see them
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+)
+
+# Link the static library against its dependencies
+target_link_libraries(svo_static PUBLIC
+    # These are PUBLIC so the dependencies propagate to any target that uses svo_static
+    fast
+    vikit_common
+    ${Boost_LIBRARIES}
+    ${OpenCV_LIBS}
+)
+
+# --- Handle g2o dependency (if enabled) ---
+if(SVO_HAVE_G2O)
+    target_compile_definitions(svo_static PRIVATE USE_BUNDLE_ADJUSTMENT)
+    target_sources(svo_static PRIVATE src/bundle_adjustment.cpp)
+    find_package(G2O REQUIRED)
+    target_include_directories(svo_static PRIVATE ${G2O_INCLUDE_DIR} /usr/include/suitesparse)
+    target_link_libraries(svo_static PUBLIC ${G2O_LIBRARIES} cholmod cxsparse)
+endif()
+
+# --- Create the Python Module ---
+pybind11_add_module(svo_cpp SHARED src/bindings.cpp src/NDArrayConverter.cpp)
 if(PYTHON_INCLUDE_DIR)
   target_include_directories(svo_cpp PRIVATE ${PYTHON_INCLUDE_DIR})
 endif()
@@ -146,28 +104,32 @@ endif()
 if(NUMPY_INCLUDE_DIR)
   target_include_directories(svo_cpp PRIVATE ${NUMPY_INCLUDE_DIR})
 endif()
-target_link_libraries(svo_cpp PRIVATE svo_static ${LINK_LIBS})
-# --- PYBIND11 INTEGRATION END ---
+
+target_link_libraries(svo_cpp PRIVATE svo_static)
+
+# --- Output Paths ---
+set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
+set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 ################################################################################
 # TESTS
 
-# add_executable(test_feature_align test/test_feature_alignment.cpp)
-# target_link_libraries(test_feature_align svo_static)
+add_executable(test_feature_align test/test_feature_alignment.cpp)
+target_link_libraries(test_feature_align svo_static)
 
 add_executable(test_pipeline test/test_pipeline.cpp)
 target_link_libraries(test_pipeline svo_static)
 
-# add_executable(test_matcher test/test_matcher.cpp)
-# target_link_libraries(test_matcher svo_static)
+add_executable(test_matcher test/test_matcher.cpp)
+target_link_libraries(test_matcher svo_static)
 
-# add_executable(test_feature_detection test/test_feature_detection.cpp)
-# target_link_libraries(test_feature_detection svo_static)
+add_executable(test_feature_detection test/test_feature_detection.cpp)
+target_link_libraries(test_feature_detection svo_static)
 
-# add_executable(test_depth_filter test/test_depth_filter.cpp)
-# target_link_libraries(test_depth_filter svo_static)
+add_executable(test_depth_filter test/test_depth_filter.cpp)
+target_link_libraries(test_depth_filter svo_static)
 
-# add_executable(test_sparse_img_align test/test_sparse_img_align.cpp)
-# target_link_libraries(test_sparse_img_align svo_static)
+add_executable(test_sparse_img_align test/test_sparse_img_align.cpp)
+target_link_libraries(test_sparse_img_align svo_static)
 
-# add_executable(test_pose_optimizer test/test_pose_optimizer.cpp)
-# target_link_libraries(test_pose_optimizer svo_static)
+add_executable(test_pose_optimizer test/test_pose_optimizer.cpp)
+target_link_libraries(test_pose_optimizer svo_static)

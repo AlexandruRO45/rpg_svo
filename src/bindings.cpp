@@ -13,6 +13,7 @@
 #include <vikit/abstract_camera.h>
 #include <vikit/pinhole_camera.h>
 #include <sophus/se3.hpp>
+#include <svo/NDArrayConverter.h>
 
 namespace py = pybind11;
 
@@ -20,37 +21,37 @@ PYBIND11_DECLARE_HOLDER_TYPE(T, boost::shared_ptr<T>);
 
 // Custom type caster to handle the conversion between
 // cv::Mat and numpy arrays.
-namespace pybind11 { namespace detail {
-template <> struct type_caster<cv::Mat> {
-    public:
-        PYBIND11_TYPE_CASTER(cv::Mat, _("numpy.ndarray"));
+// namespace pybind11 { namespace detail {
+// template <> struct type_caster<cv::Mat> {
+//     public:
+//         PYBIND11_TYPE_CASTER(cv::Mat, _("numpy.ndarray"));
 
-        bool load(handle src, bool) {
-            if (!py::isinstance<py::array>(src))
-                return false;
+//         bool load(handle src, bool) {
+//             if (!py::isinstance<py::array>(src))
+//                 return false;
 
-            auto buf = py::array_t<uint8_t, py::array::c_style | py::array::forcecast>::ensure(src);
-            if (!buf)
-                return false;
+//             auto buf = py::array_t<uint8_t, py::array::c_style | py::array::forcecast>::ensure(src);
+//             if (!buf)
+//                 return false;
             
-            // Create a temporary Mat header that points to the numpy array's data
-            cv::Mat temp_mat(buf.shape(0), buf.shape(1), CV_8U, (void*)buf.data());
-            value = temp_mat.clone();
-            return true;
-        }
+//             // Create a temporary Mat header that points to the numpy array's data
+//             cv::Mat temp_mat(buf.shape(0), buf.shape(1), CV_8U, (void*)buf.data());
+//             value = temp_mat.clone();
+//             return true;
+//         }
 
-        static handle cast(const cv::Mat &m, return_value_policy, handle defval) {
-             return py::array(py::buffer_info(
-                m.data,
-                sizeof(unsigned char),
-                py::format_descriptor<unsigned char>::format(),
-                2,
-                { (size_t) m.rows, (size_t) m.cols },
-                { (size_t) m.step[0], (size_t) m.step[1] }
-             )).release();
-        }
-};
-}} // namespace pybind11::detail
+//         static handle cast(const cv::Mat &m, return_value_policy, handle defval) {
+//              return py::array(py::buffer_info(
+//                 m.data,
+//                 sizeof(unsigned char),
+//                 py::format_descriptor<unsigned char>::format(),
+//                 2,
+//                 { (size_t) m.rows, (size_t) m.cols },
+//                 { (size_t) m.step[0], (size_t) m.step[1] }
+//              )).release();
+//         }
+// };
+// }} // namespace pybind11::detail
 
 
 // Main function to define the Python module
@@ -61,6 +62,7 @@ PYBIND11_MODULE(svo_cpp, m) {
     // 1. Bind Core Data Types (Pose, Camera)
     // =================================================================================
 
+    NDArrayConverter::init_numpy();
     py::class_<Sophus::SE3d>(m, "SE3d")
         .def(py::init<>())
         .def("translation", static_cast<const Eigen::Vector3d& (Sophus::SE3d::*)() const>(&Sophus::SE3d::translation))
@@ -84,18 +86,59 @@ PYBIND11_MODULE(svo_cpp, m) {
     
     // Expose a function to set SVO's global config singleton from a Python dict
     m.def("set_svo_config", [](const py::dict& config_dict) {
-        if (config_dict.contains("n_pyr_levels")) {
+    // This function now exposes ALL parameters from svo::Config to Python. USE IT WITH CAUTION
+        if (config_dict.contains("n_pyr_levels"))
             svo::Config::nPyrLevels() = config_dict["n_pyr_levels"].cast<size_t>();
-        }
-        if (config_dict.contains("kfselect_mindist")) {
-            svo::Config::kfSelectMinDist() = config_dict["kfselect_mindist"].cast<double>();
-        }
-        if (config_dict.contains("reproj_thresh")) {
+        if (config_dict.contains("use_imu"))
+            svo::Config::useImu() = config_dict["use_imu"].cast<bool>();
+        if (config_dict.contains("core_n_kfs"))
+            svo::Config::coreNKfs() = config_dict["core_n_kfs"].cast<size_t>();
+        if (config_dict.contains("map_scale"))
+            svo::Config::mapScale() = config_dict["map_scale"].cast<double>();
+        if (config_dict.contains("grid_size"))
+            svo::Config::gridSize() = config_dict["grid_size"].cast<size_t>();
+        if (config_dict.contains("init_min_disparity"))
+            svo::Config::initMinDisparity() = config_dict["init_min_disparity"].cast<double>();
+        if (config_dict.contains("init_min_tracked"))
+            svo::Config::initMinTracked() = config_dict["init_min_tracked"].cast<size_t>();
+        if (config_dict.contains("init_min_inliers"))
+            svo::Config::initMinInliers() = config_dict["init_min_inliers"].cast<size_t>();
+        if (config_dict.contains("klt_max_level"))
+            svo::Config::kltMaxLevel() = config_dict["klt_max_level"].cast<size_t>();
+        if (config_dict.contains("klt_min_level"))
+            svo::Config::kltMinLevel() = config_dict["klt_min_level"].cast<size_t>();
+        if (config_dict.contains("reproj_thresh"))
             svo::Config::reprojThresh() = config_dict["reproj_thresh"].cast<double>();
-        }
-        if (config_dict.contains("max_fts")) {
+        if (config_dict.contains("poseoptim_thresh"))
+            svo::Config::poseOptimThresh() = config_dict["poseoptim_thresh"].cast<double>();
+        if (config_dict.contains("poseoptim_num_iter"))
+            svo::Config::poseOptimNumIter() = config_dict["poseoptim_num_iter"].cast<size_t>();
+        if (config_dict.contains("structureoptim_max_pts"))
+            svo::Config::structureOptimMaxPts() = config_dict["structureoptim_max_pts"].cast<size_t>();
+        if (config_dict.contains("structureoptim_num_iter"))
+            svo::Config::structureOptimNumIter() = config_dict["structureoptim_num_iter"].cast<size_t>();
+        if (config_dict.contains("loba_thresh"))
+            svo::Config::lobaThresh() = config_dict["loba_thresh"].cast<double>();
+        if (config_dict.contains("loba_robust_huber_width"))
+            svo::Config::lobaRobustHuberWidth() = config_dict["loba_robust_huber_width"].cast<double>();
+        if (config_dict.contains("loba_num_iter"))
+            svo::Config::lobaNumIter() = config_dict["loba_num_iter"].cast<size_t>();
+        if (config_dict.contains("kfselect_mindist"))
+            svo::Config::kfSelectMinDist() = config_dict["kfselect_mindist"].cast<double>();
+        if (config_dict.contains("triang_min_corner_score"))
+            svo::Config::triangMinCornerScore() = config_dict["triang_min_corner_score"].cast<double>();
+        if (config_dict.contains("subpix_n_iter"))
+            svo::Config::subpixNIter() = config_dict["subpix_n_iter"].cast<size_t>();
+        if (config_dict.contains("max_n_kfs"))
+            svo::Config::maxNKfs() = config_dict["max_n_kfs"].cast<size_t>();
+        if (config_dict.contains("img_imu_delay"))
+            svo::Config::imgImuDelay() = config_dict["img_imu_delay"].cast<double>();
+        if (config_dict.contains("max_fts"))
             svo::Config::maxFts() = config_dict["max_fts"].cast<size_t>();
-        }
+        if (config_dict.contains("quality_min_fts"))
+            svo::Config::qualityMinFts() = config_dict["quality_min_fts"].cast<size_t>();
+        if (config_dict.contains("quality_max_drop_fts"))
+            svo::Config::qualityMaxFtsDrop() = config_dict["quality_max_drop_fts"].cast<int>();
     }, "Set SVO parameters from a Python dictionary.");
 
     // =================================================================================
@@ -117,7 +160,7 @@ PYBIND11_MODULE(svo_cpp, m) {
 
     // This is the main class we will interact with from Python
     py::class_<svo::FrameHandlerMono>(m, "SVO")
-        .def(py::init<vk::AbstractCamera*>(), "Constructor takes a camera model.")
+        .def(py::init<vk::AbstractCamera*>(), "Constructor takes a camera model.",py::arg("camera"), py::keep_alive<1, 2>())
         .def("start", &svo::FrameHandlerMono::start, "Start the VO pipeline.")
         .def("reset", &svo::FrameHandlerMono::reset, "Reset the system to its initial state.")
         .def("addImage", &svo::FrameHandlerMono::addImage,

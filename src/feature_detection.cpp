@@ -78,7 +78,7 @@ void FastDetector::detect(
       fast::fast_corner_detect_10_sse2(
           (fast::fast_byte*) img_pyr[L].data, img_pyr[L].cols,
           img_pyr[L].rows, img_pyr[L].cols, 20, fast_corners);
-#elif HAVE_FAST_NEON
+#elif __ARM_NEON__ || __ARM_NEON // TODO Why HAVE_FAST_NEON before
       fast::fast_corner_detect_9_neon(
           (fast::fast_byte*) img_pyr[L].data, img_pyr[L].cols,
           img_pyr[L].rows, img_pyr[L].cols, 20, fast_corners);
