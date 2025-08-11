@@ -3,46 +3,49 @@ project(fast)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_BUILD_TYPE Release)
-SET(CMAKE_CXX_FLAGS "-Wall -Werror -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unknown-pragmas")
-set(ENV{ARM_ARCHITECTURE} aarch64)
 
-IF(DEFINED ENV{ARM_ARCHITECTURE})
-	IF("$ENV{ARM_ARCHITECTURE}" STREQUAL "aarch64")
-		SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=native")
-        ELSEIF("$ENV{ARM_ARCHITECTURE}" STREQUAL "armv8")
-                SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=native")
-	ELSE()
-		SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -mfpu=neon -march=armv7-a")
-	ENDIF()	
-else()
-    # x86/x86_64
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -mmmx -msse -msse -msse2 -msse3 -mssse3 -fomit-frame-pointer")
-endif()
+# --- Set base warning flags ---
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Werror -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unknown-pragmas")
 
-# find_package(ament_cmake REQUIRED)
-
+# --- Define all source and header files ---
 set(HEADERS
   include/fast/corner_9.h
   include/fast/corner_10.h
   include/fast/fast.h
   include/fast/faster_corner_utilities.h
-  )
+)
 
 set(SOURCES
   src/fast_9.cpp
   src/fast_10.cpp
   src/fast_10_score.cpp
   src/nonmax_3x3.cpp
-  )
+)
 
-# TODO: FIND OUT THE Neon issue https://gcc.gnu.org/onlinedocs/gcc/ARM-Options.html
-IF(DEFINED ENV{ARM_ARCHITECTURE})
-  LIST(APPEND SOURCES ${PROJECT_SOURCE_DIR}/src/faster_corner_9_neon.cpp)
-ELSE()
-  LIST(APPEND SOURCES ${PROJECT_SOURCE_DIR}/src/faster_corner_10_sse.cpp)
-ENDIF()
+# --- Append architecture-specific sources and compiler flags (Old Style) ---
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|armv8")
+  # For 64-bit ARM platforms like your Jetson Xavier AGX
+  message(STATUS "Configuring for 64-bit ARM (aarch64/armv8).")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=native")
+  list(APPEND SOURCES src/faster_corner_9_neon.cpp)
 
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "arm")
+  # For 32-bit ARM platforms
+  message(STATUS "Configuring for 32-bit ARM (e.g., armv7-a).")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -mfpu=neon -march=armv7-a")
+  list(APPEND SOURCES src/faster_corner_9_neon.cpp)
+
+else()
+  # For x86/x86_64 platforms
+  message(STATUS "Configuring for x86/x86_64 architecture.")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -mmmx -msse -msse2 -msse3 -mssse3 -fomit-frame-pointer")
+  list(APPEND SOURCES src/faster_corner_10_sse.cpp)
+endif()
+
+# --- Create the library target ---
 add_library(${PROJECT_NAME} SHARED ${SOURCES})
+
+# --- Set public include directories for this library ---
 target_include_directories(${PROJECT_NAME}
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -50,16 +53,13 @@ target_include_directories(${PROJECT_NAME}
 )
 
 ################################################################################
+# --- Installation Rules ---
 install(TARGETS ${PROJECT_NAME}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
 )
+
 install(DIRECTORY include/
   DESTINATION include/
 )
-
-# ament_export_libraries(${PROJECT_NAME})
-# ament_export_include_directories(include)
-# ament_package()
-
