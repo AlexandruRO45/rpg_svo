@@ -109,7 +109,7 @@ int main(int argc, char **argv)
   printf("1000Xalign 2D SSE2 %fms, error = %fpx \t (ref i7-W520: 0.460000ms, 0.021881px)\n", t.stop()*1000, e.norm());
 #endif
 
-#ifdef __ARM_NEON__ || __ARM_NEON
+#if defined(__ARM_NEON__) || defined(__ARM_NEON)
   t.start();
   for(int i=0; i<1000; ++i)
   {
