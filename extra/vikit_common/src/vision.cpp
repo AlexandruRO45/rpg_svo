@@ -44,7 +44,7 @@ void halfSampleSSE2(const unsigned char* in, unsigned char* out, int w, int h)
 }
 #endif 
 
-#ifdef __ARM_NEON__ || __ARM_NEON
+#if defined(__ARM_NEON__) || defined(__ARM_NEON)
 void halfSampleNEON( const cv::Mat& in, cv::Mat& out )
 {
   for( int y = 0; y < in.rows; y += 2)
@@ -80,7 +80,7 @@ halfSample(const cv::Mat& in, cv::Mat& out)
     return;
   }
 #endif 
-#ifdef __ARM_NEON__ || __ARM_NEON
+#if defined(__ARM_NEON__) || defined(__ARM_NEON)
   if( (in.cols % 16) == 0 )
   {
     halfSampleNEON(in, out);

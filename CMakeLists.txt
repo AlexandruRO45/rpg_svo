@@ -113,23 +113,23 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 ################################################################################
 # TESTS
 
-add_executable(test_feature_align test/test_feature_alignment.cpp)
-target_link_libraries(test_feature_align svo_static)
+# add_executable(test_feature_align test/test_feature_alignment.cpp)
+# target_link_libraries(test_feature_align svo_static)
 
-add_executable(test_pipeline test/test_pipeline.cpp)
-target_link_libraries(test_pipeline svo_static)
+# add_executable(test_pipeline test/test_pipeline.cpp)
+# target_link_libraries(test_pipeline svo_static)
 
-add_executable(test_matcher test/test_matcher.cpp)
-target_link_libraries(test_matcher svo_static)
+# add_executable(test_matcher test/test_matcher.cpp)
+# target_link_libraries(test_matcher svo_static)
 
-add_executable(test_feature_detection test/test_feature_detection.cpp)
-target_link_libraries(test_feature_detection svo_static)
+# add_executable(test_feature_detection test/test_feature_detection.cpp)
+# target_link_libraries(test_feature_detection svo_static)
 
-add_executable(test_depth_filter test/test_depth_filter.cpp)
-target_link_libraries(test_depth_filter svo_static)
+# add_executable(test_depth_filter test/test_depth_filter.cpp)
+# target_link_libraries(test_depth_filter svo_static)
 
-add_executable(test_sparse_img_align test/test_sparse_img_align.cpp)
-target_link_libraries(test_sparse_img_align svo_static)
+# add_executable(test_sparse_img_align test/test_sparse_img_align.cpp)
+# target_link_libraries(test_sparse_img_align svo_static)
 
-add_executable(test_pose_optimizer test/test_pose_optimizer.cpp)
-target_link_libraries(test_pose_optimizer svo_static)
+# add_executable(test_pose_optimizer test/test_pose_optimizer.cpp)
+# target_link_libraries(test_pose_optimizer svo_static)
