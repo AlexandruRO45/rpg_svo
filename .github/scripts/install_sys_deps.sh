@@ -8,10 +8,7 @@ set -o pipefail
 echo "--- Running yum clean and installing base dependencies on AlmaLinux... ---"
 yum clean all
 yum update -y
-
-# Enable the EPEL and PowerTools/CRB repositories for build dependencies
 yum install -y epel-release
-yum config-manager --set-enabled crb
 
 # Install dependencies required to build OpenCV and for the main project
 yum install -y \
