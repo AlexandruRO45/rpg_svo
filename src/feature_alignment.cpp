@@ -17,7 +17,7 @@
 #ifdef __SSE2__
 #include <emmintrin.h>
 #endif
-#ifdef __ARM_NEON__ || __ARM_NEON
+#if defined(__ARM_NEON__) || defined(__ARM_NEON)
 #include <arm_neon.h>
 #endif
 #include <svo/feature_alignment.h>
@@ -154,7 +154,7 @@ bool align2D(
     Vector2d& cur_px_estimate,
     bool no_simd)
 {
-#ifdef __ARM_NEON__ || __ARM_NEON
+#if defined(__ARM_NEON__) || defined(__ARM_NEON)
   if(!no_simd)
     return align2D_NEON(cur_img, ref_patch_with_border, ref_patch, n_iter, cur_px_estimate);
 #endif
@@ -504,7 +504,7 @@ bool align2D_NEON (
     float subpix_y = v-v_r;
     float b1=0, b2=0;
 
-#ifdef __ARM_NEON__ || __ARM_NEON
+#if defined(__ARM_NEON__) || defined(__ARM_NEON)
     const int SHIFT_BITS = 7;
     const uint16_t wTL = static_cast<uint16_t>((1.0f-subpix_x)*(1.0f-subpix_y)*(1<<SHIFT_BITS));
     const uint16_t wTR = static_cast<uint16_t>(subpix_x*(1.0f-subpix_y)*(1<<SHIFT_BITS));
