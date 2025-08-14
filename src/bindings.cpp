@@ -91,6 +91,14 @@ PYBIND11_MODULE(svo_cpp, m) {
             svo::Config::nPyrLevels() = config_dict["n_pyr_levels"].cast<size_t>();
         if (config_dict.contains("use_imu"))
             svo::Config::useImu() = config_dict["use_imu"].cast<bool>();
+        if (config_dict.contains("imu_gyro_noise")) 
+            svo::Config::imuGyroNoise() = config_dict["imu_gyro_noise"].cast<double>();
+        if (config_dict.contains("imu_acc_noise")) 
+            svo::Config::imuAccNoise() = config_dict["imu_acc_noise"].cast<double>();
+        if (config_dict.contains("imu_gyro_walk")) 
+            svo::Config::imuGyroWalk() = config_dict["imu_gyro_walk"].cast<double>();
+        if (config_dict.contains("imu_acc_walk")) 
+            svo::Config::imuAccWalk() = config_dict["imu_acc_walk"].cast<double>();
         if (config_dict.contains("core_n_kfs"))
             svo::Config::coreNKfs() = config_dict["core_n_kfs"].cast<size_t>();
         if (config_dict.contains("map_scale"))
@@ -164,8 +172,11 @@ PYBIND11_MODULE(svo_cpp, m) {
         .def("start", &svo::FrameHandlerMono::start, "Start the VO pipeline.")
         .def("reset", &svo::FrameHandlerMono::reset, "Reset the system to its initial state.")
         .def("addImage", &svo::FrameHandlerMono::addImage,
-             "Process a new image. Takes a NumPy array (uint8) and a timestamp (float).",
-             py::arg("image"), py::arg("timestamp"))
+            "Process a new image. Takes a NumPy array (uint8) and a timestamp (float).",
+            py::arg("image"), py::arg("timestamp"), py::arg("mask").none(true))
+        .def("addImuMeasurement", &svo::FrameHandlerMono::addImuMeasurement,
+            "Provide a single IMU measurement with its timestamp.", 
+            py::arg("gyro"), py::arg("accel"), py::arg("timestamp")) // angular_velocity, linear_acceleration, timestamp
         .def("lastFrame", &svo::FrameHandlerMono::lastFrame,
              "Get the last processed frame object.",
              py::return_value_policy::reference) // Return a reference, not a copy

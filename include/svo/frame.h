@@ -54,8 +54,9 @@ public:
   bool                          is_keyframe_;           //!< Was this frame selected as keyframe?
   g2oFrameSE3*                  v_kf_;                  //!< Temporary pointer to the g2o node object of the keyframe.
   int                           last_published_ts_;     //!< Timestamp of last publishing.
+  cv::Mat                       mask_;                  //!< Dynamic Filtering Mask.
 
-  Frame(vk::AbstractCamera* cam, const cv::Mat& img, double timestamp);
+  Frame(vk::AbstractCamera* cam, const cv::Mat& img, double timestamp, const cv::Mat& mask = cv::Mat());
   ~Frame();
 
   /// Initialize new frame and create image pyramid.

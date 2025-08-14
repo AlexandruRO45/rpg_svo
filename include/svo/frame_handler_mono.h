@@ -22,6 +22,7 @@
 #include <svo/frame_handler_base.h>
 #include <svo/reprojector.h>
 #include <svo/initialization.h>
+#include <svo/IMU_Preintegrator.h>
 
 namespace svo {
 
@@ -34,8 +35,11 @@ public:
   FrameHandlerMono(vk::AbstractCamera* cam);
   virtual ~FrameHandlerMono();
 
+  // IMU Structure
+  void addImuMeasurement(const Eigen::Vector3d& gyro, const Eigen::Vector3d& accel, double timestamp);
+
   /// Provide an image.
-  void addImage(const cv::Mat& img, double timestamp);
+  void addImage(const cv::Mat& img, double timestamp, const cv::Mat& mask = cv::Mat());
 
   /// Set the first frame (used for synthetic datasets in benchmark node)
   void setFirstFrame(const FramePtr& first_frame);
@@ -68,7 +72,9 @@ protected:
   std::set<FramePtr> core_kfs_;                 //!< Keyframes in the closer neighbourhood.
   std::vector< std::pair<FramePtr,size_t> > overlap_kfs_; //!< All keyframes with overlapping field of view. the paired number specifies how many common mappoints are observed TODO: why vector!?
   initialization::KltHomographyInit klt_homography_init_; //!< Used to estimate pose of the first two keyframes by estimating a homography.
-  DepthFilter* depth_filter_;                   //!< Depth estimation algorithm runs in a parallel thread and is used to initialize new 3D points.
+  DepthFilter* depth_filter_;                   //!< Depth estimation algorithm runs in a parallel thread and is used to initialize new 3D points.      
+  IMUPreintegrator imu_preintegrator_;
+  double last_imu_timestamp_;    
 
   /// Initialize the visual odometry algorithm.
   virtual void initialize();

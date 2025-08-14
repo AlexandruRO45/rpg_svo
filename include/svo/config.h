@@ -45,6 +45,10 @@ public:
 
   /// Use the IMU to get relative rotations.
   static bool& useImu() { return getInstance().use_imu; }
+  static double& imuGyroNoise() { return getInstance().imu_gyro_noise; }
+  static double& imuAccNoise() { return getInstance().imu_acc_noise; }
+  static double& imuGyroWalk() { return getInstance().imu_gyro_walk; }
+  static double& imuAccWalk() { return getInstance().imu_acc_walk; }
 
   /// Number of keyframes in the core. The core-kfs are optimized through bundle adjustment.
   static size_t& coreNKfs() { return getInstance().core_n_kfs; }
@@ -127,6 +131,10 @@ public:
     string trace_dir_,
     size_t n_pyr_levels_,
     bool use_imu_,
+    double imu_gyro_noise_,
+    double imu_acc_noise_,
+    double imu_gyro_walk_,
+    double imu_acc_walk_,
     size_t core_n_kfs_,
     double map_scale_,
     size_t grid_size_,
@@ -184,6 +192,10 @@ private:
   size_t max_fts;
   size_t quality_min_fts;
   int quality_max_drop_fts;
+  double imu_gyro_noise;
+  double imu_acc_noise;
+  double imu_gyro_walk;
+  double imu_acc_walk;
 };
 
 extern Config instance;

@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.14)
 project(svo)
 
 set(CMAKE_BUILD_TYPE Release)
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # --- User Build Options ---
@@ -35,6 +35,9 @@ set(SVO_SOURCES
     src/pose_optimizer.cpp
     src/reprojector.cpp
     src/sparse_img_align.cpp
+    src/IMU_Data.cpp
+    src/IMU_Preintegrator.cpp
+    src/so3.cpp
 )
 
 # --- Create the Core Static Library Target ---

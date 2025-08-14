@@ -24,6 +24,7 @@
 #include <svo/sparse_img_align.h>
 #include <vikit/performance_monitor.h>
 #include <svo/depth_filter.h>
+#include <svo/IMU_Data.h>
 #ifdef USE_BUNDLE_ADJUSTMENT
 #include <svo/bundle_adjustment.h>
 #endif
@@ -34,7 +35,9 @@ FrameHandlerMono::FrameHandlerMono(vk::AbstractCamera* cam) :
   FrameHandlerBase(),
   cam_(cam),
   reprojector_(cam_, map_),
-  depth_filter_(NULL)
+  depth_filter_(NULL),
+  imu_preintegrator_(),
+  last_imu_timestamp_(-1.0)
 {
   initialize();
 }
@@ -55,7 +58,27 @@ FrameHandlerMono::~FrameHandlerMono()
   delete depth_filter_;
 }
 
-void FrameHandlerMono::addImage(const cv::Mat& img, const double timestamp)
+void FrameHandlerMono::addImuMeasurement(const Eigen::Vector3d& gyro, const Eigen::Vector3d& accel, double timestamp)
+{
+    if (!Config::useImu())
+        return;
+
+    if (last_imu_timestamp_ < 0) {
+        last_imu_timestamp_ = timestamp;
+        return;
+    }
+
+    double dt = timestamp - last_imu_timestamp_;
+    if (dt <= 0) {
+        return;
+    }
+    
+    imu_preintegrator_.Update(gyro, accel, dt);
+    
+    last_imu_timestamp_ = timestamp;
+}
+
+void FrameHandlerMono::addImage(const cv::Mat& img, const double timestamp, const cv::Mat& mask)
 {
   if(!startFrameProcessingCommon(timestamp))
     return;
@@ -66,8 +89,71 @@ void FrameHandlerMono::addImage(const cv::Mat& img, const double timestamp)
 
   // create new frame
   SVO_START_TIMER("pyramid_creation");
-  new_frame_.reset(new Frame(cam_, img.clone(), timestamp));
+  new_frame_.reset(new Frame(cam_, img.clone(), timestamp, mask));
   SVO_STOP_TIMER("pyramid_creation");
+
+  // VIO LOGIC: Gyroscope-Only Motion Prior
+  // if(stage_ != STAGE_FIRST_FRAME && !imu_buffer_.empty())
+  // {
+  //   // Start with the last known orientation
+  //   Sophus::SO3d delta_rotation; // Identity rotation
+  //   double last_imu_timestamp = last_frame_->timestamp_;
+
+  //   // Integrate all new IMU measurements
+  //   for(const auto& meas : imu_buffer_)
+  //   {
+
+  //     if (meas.timestamp < last_imu_timestamp)
+  //       continue; // Skip any old measurements
+
+  //     // Time delta for this measurement
+  //     const double dt = meas.timestamp - last_imu_timestamp;
+
+  //     // Update rotation using Rodrigues' formula (exponential map)
+  //     // This is more stable than simple Euler integration for large rotations
+  //     delta_rotation = delta_rotation * Sophus::SO3d::exp(meas.angular_velocity * dt);
+
+  //     last_imu_timestamp = meas.timestamp;
+  //   }
+
+  //   // Create the motion prior (rotation only, no translation)
+  //   const SE3d motion_prior(delta_rotation, Eigen::Vector3d::Zero());
+
+  //   // Apply the prior to the last frame's pose to get an initial guess for the new frame
+  //   new_frame_->T_f_w_ = motion_prior * last_frame_->T_f_w_;
+  //   SVO_INFO_STREAM("Applied gyro motion prior from " << imu_buffer_.size() << " measurements.");
+  //   imu_buffer_.clear();
+  // } else {
+  //   // If no IMU data, initialize pose from the last frame's pose
+  //   if(last_frame_)
+  //     new_frame_->T_f_w_ = last_frame_->T_f_w_;
+  // }
+  // if(stage_ != STAGE_FIRST_FRAME && last_frame_ && !imu_buffer_.empty())
+  // {
+  //   // Create a new pre-integrator for this frame-to-frame measurement
+  //   VIO::IMUPreintegrator frame_imu_integrator;
+  //   for(size_t i = 0; i < imu_buffer_.size(); ++i)
+  //   {
+  //       VIO::IMUData& m = imu_buffer_[i];
+  //       double dt = (i+1 < imu_buffer_.size()) ? (imu_buffer_[i+1].timestamp_ - m.timestamp_) : (timestamp - m.timestamp_);
+  //       if(dt <= 0) continue;
+        
+  //       // A full VIO system would subtract estimated biases here.
+  //       frame_imu_integrator.Update(m.gyroscope_, m.accelerometer_, dt);
+  //   }
+
+  //   Eigen::Matrix3d dR_mat = frame_imu_integrator.GetDeltaRot();
+  //   Sophus::SO3d dR(dR_mat); // Convert Eigen::Matrix3d to Sophus::SO3d
+    
+  //   const SE3d motion_prior(dR, Eigen::Vector3d::Zero());
+  //   new_frame_->T_f_w_ = motion_prior * last_frame_->T_f_w_;
+  // }
+  // else if(last_frame_)
+  // {
+  //   new_frame_->T_f_w_ = last_frame_->T_f_w_;
+  // }
+  
+  // imu_buffer_.clear();
 
   // process frame
   UpdateResult res = RESULT_FAILURE;
@@ -81,6 +167,13 @@ void FrameHandlerMono::addImage(const cv::Mat& img, const double timestamp)
     res = relocalizeFrame(SE3d(Matrix3d::Identity(), Vector3d::Zero()),
                           map_.getClosestKeyframe(last_frame_));
 
+  // if(res == RESULT_IS_KEYFRAME)
+  // {
+  //   // When a new keyframe is selected, reset the pre-integrator
+  //   // A full VIO system would update the biases here from the backend optimizer
+  //   imu_preintegrator_->reset();
+  // }
+  
   // set last frame
   last_frame_ = new_frame_;
   new_frame_.reset();
@@ -96,6 +189,8 @@ FrameHandlerMono::UpdateResult FrameHandlerMono::processFirstFrame()
   new_frame_->setKeyframe();
   map_.addKeyframe(new_frame_);
   stage_ = STAGE_SECOND_FRAME;
+  if(Config::useImu())
+    imu_preintegrator_.reset();
   SVO_INFO_STREAM("Init: Selected first frame.");
   return RESULT_IS_KEYFRAME;
 }
@@ -122,14 +217,22 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processSecondFrame()
   map_.addKeyframe(new_frame_);
   stage_ = STAGE_DEFAULT_FRAME;
   klt_homography_init_.reset();
+  if(Config::useImu())
+    imu_preintegrator_.reset();
   SVO_INFO_STREAM("Init: Selected second frame, triangulated initial map.");
   return RESULT_IS_KEYFRAME;
 }
 
 FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
 {
-  // Set initial pose TODO use prior
-  new_frame_->T_f_w_ = last_frame_->T_f_w_;
+  if (Config::useImu()) {
+    Sophus::SO3d R_last(last_frame_->T_f_w_.unit_quaternion());
+    Sophus::SO3d R_imu(imu_preintegrator_.GetDeltaRot());
+    Sophus::SO3d R_new = R_last * R_imu.inverse();
+    new_frame_->T_f_w_ = SE3d(R_new.unit_quaternion(), last_frame_->T_f_w_.translation());
+  } else {
+    new_frame_->T_f_w_ = last_frame_->T_f_w_;
+  }
 
   // sparse image align
   SVO_START_TIMER("sparse_img_align");
@@ -220,6 +323,9 @@ FrameHandlerBase::UpdateResult FrameHandlerMono::processFrame()
   // init new depth-filters
   depth_filter_->addKeyframe(new_frame_, depth_mean, 0.5*depth_min);
 
+  if(Config::useImu())
+    imu_preintegrator_.reset();
+
   // if limited number of keyframes, remove the one furthest apart
   if(Config::maxNKfs() > 2 && map_.size() >= Config::maxNKfs())
   {
@@ -290,6 +396,10 @@ void FrameHandlerMono::resetAll()
   core_kfs_.clear();
   overlap_kfs_.clear();
   depth_filter_->reset();
+  if(Config::useImu()) {
+    last_imu_timestamp_ = -1.0;
+    imu_preintegrator_.reset();
+  }
 }
 
 void FrameHandlerMono::setFirstFrame(const FramePtr& first_frame)

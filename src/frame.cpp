@@ -29,10 +29,11 @@ namespace svo {
 
 int Frame::frame_counter_ = 0;
 
-Frame::Frame(vk::AbstractCamera* cam, const cv::Mat& img, double timestamp) :
+Frame::Frame(vk::AbstractCamera* cam, const cv::Mat& img, double timestamp, const cv::Mat& mask) :
     id_(frame_counter_++),
     timestamp_(timestamp),
     cam_(cam),
+    mask_(mask),
     key_pts_(5),
     is_keyframe_(false),
     v_kf_(NULL)
